@@ -1,0 +1,1629 @@
+import gzip
+import json
+import math
+import random
+import shutil
+from pathlib import Path
+
+import numpy as np
+from ase.filters import FrechetCellFilter
+from ase.optimize import LBFGS
+from pymatgen.core import Structure
+from pymatgen.io.ase import AseAtomsAdaptor
+from scipy.optimize import linear_sum_assignment
+from .structure_check import (
+    DEFAULT_ENERGY_JUMP_PER_ATOM, LayeredFrameworkReference, check_structure, compact_structure_check,
+)
+from .occupation_history import ReferenceOccupations, pack_occupation, site_layout
+
+
+def _relaxation_input_identity(structure):
+    """Identify the exact periodic input, independent of site order and wrapping."""
+    import hashlib
+
+    atoms = AseAtomsAdaptor.get_atoms(structure)
+    positions = atoms.get_scaled_positions(wrap=True)
+    sites = sorted((int(number), *(round(float(x) % 1.0, 8) % 1.0 for x in position))
+                   for number, position in zip(atoms.get_atomic_numbers(), positions))
+    payload = {"cell": np.round(atoms.cell.array, 8).tolist(), "sites": sites}
+    return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+class InitialExtrapolationFailure(RuntimeError):
+    def __init__(self, evidence):
+        super().__init__('initial_relaxation_extrapolation_failure')
+        self.evidence = evidence
+
+
+class LayeredOxide_MCOrderingClass:
+    """MLIP relaxation and MC ordering for layered Na-TM-O systems.
+
+    Supported modes are ``TM_MC_random``, ``TM_MC_input``,
+    ``Na_MC_input``, and ``Relax``. Models can be loaded when the object is
+    created; the structure, mode, output directory, and run parameters can be
+    supplied later to :meth:`run`.
+
+    Committee:
+        - one main model performs relaxation
+        - all models evaluate each relaxed structure
+        - MC acceptance, ranking and stopping use main-model energy per atom
+
+    Output:
+        settings.json
+        trace.json
+        status.json
+        initial_unrelaxed.vasp
+        initial_relaxed.vasp
+        initial_relax_traj.json
+        pool/
+            rank_XXX_step_YYYY.vasp
+            rank_XXX_step_YYYY_relax_traj.json
+            pool_summary.json
+    """
+
+    MC_ENERGY_BASIS = "main_model"
+
+    MODES = {
+        "TM_MC_random",
+        "TM_MC_input",
+        "Na_MC_input",
+        "Relax",
+    }
+
+    RUN_OPTIONS = {
+        "temperature",
+        "max_steps",
+        "seed",
+        "pool_size",
+        "fmax",
+        "relax_steps",
+        "relax_cell",
+        "save_every",
+        "patience",
+        "energy_tol",
+        "tm_original_element",
+        "tm_ratios",
+        "full_na_structure",
+        "max_duplicate_trials",
+        "save_relax_traj",
+        "occupation_history_scope",
+        "occupation_history_seed",
+        "occupation_reference_file",
+        "min_improvement",
+        "structure_check_parameters",
+    }
+
+    def __init__(
+        self,
+        structure=None,
+        mode=None,
+        out_dir=None,
+        temperature=300,
+        max_steps=1000,
+        seed=0,
+        pool_size=50,
+        fmax=0.05,
+        relax_steps=150,
+        relax_cell=True,
+        save_every=100,
+        patience=10,
+        energy_tol=1e-3,
+        tm_original_element=None,
+        tm_ratios=None,
+        na_remove_num=0,
+        max_duplicate_trials=100,
+        model_path=None,
+        model_paths=None,
+        main_model_index=0,
+        model_type="chgnet",
+        device="cpu",
+        mace_head=None,
+        mace_default_dtype="float64",
+        initialize="random",
+        full_na_structure=None,
+        save_relax_traj=False,
+        occupation_history_scope=None,
+        occupation_history_seed=None,
+        occupation_reference_file=None,
+        min_improvement=None,
+        structure_check_parameters=None,
+        relaxation_monitor_factory=None,
+    ):
+        self.relaxation_monitor_factory = relaxation_monitor_factory
+        self.structure = (
+            self._load_structure(structure)
+            if structure is not None
+            else None
+        )
+        self.mode = mode
+        self.out_dir = Path(out_dir) if out_dir is not None else None
+        self.pool_dir = (
+            self.out_dir / "pool"
+            if self.out_dir is not None
+            else None
+        )
+
+        self.temperature = temperature
+        self.kb = 8.617333262145e-5
+        self.max_steps = max_steps
+        self.seed = seed
+        self.pool_size = pool_size
+        self.fmax = fmax
+        self.relax_steps = relax_steps
+        self.relax_cell = relax_cell
+        self.save_every = save_every
+
+        self.patience = patience
+        self.energy_tol = energy_tol
+        if min_improvement is not None:
+            self.energy_tol = float(min_improvement)
+        self.min_improvement = min_improvement
+        self.structure_check_parameters = dict(structure_check_parameters or {})
+        self._configure_structure_checks()
+        self.occupation_history_scope = occupation_history_scope
+        self.occupation_history_seed = occupation_history_seed
+        self.occupation_reference_file = occupation_reference_file
+        self._history = None
+        self.last_improve_step = 0
+
+        self.tm_original_element = tm_original_element
+        self.tm_ratios = tm_ratios
+        self.na_remove_num = na_remove_num
+        self.max_duplicate_trials = max_duplicate_trials
+        self.save_relax_traj = bool(save_relax_traj)
+
+        self.model_path = model_path
+        self.model_paths = model_paths
+        self.main_model_index = main_model_index
+        self.model_type = str(model_type).lower()
+        self.device = device
+        self.mace_head = mace_head
+        self.mace_default_dtype = mace_default_dtype
+
+        if self.model_type not in {"chgnet", "mace"}:
+            raise ValueError("model_type must be either 'chgnet' or 'mace'.")
+
+        self.initialize = initialize
+
+        self.full_na_structure = (
+            self._load_structure(full_na_structure)
+            if full_na_structure is not None
+            else None
+        )
+        random.seed(seed)
+        np.random.seed(seed)
+
+        self.models = self._load_models(
+            model_path=self.model_path,
+            model_paths=self.model_paths,
+        )
+
+        if not (0 <= self.main_model_index < len(self.models)):
+            raise ValueError("main_model_index out of range.")
+
+        self.model = self.models[self.main_model_index]
+        self.committee_size = len(self.models)
+
+        self.relaxer = self._build_relaxer()
+
+        print(
+            f"Loaded {self.committee_size} {self.model_type.upper()} model(s). "
+            f"Main model index = {self.main_model_index}."
+        )
+
+        self.visited = set()
+        self.trace = []
+        self.pool = []
+
+        self.current_structure = None
+        self.current_eval = None
+        self.current_key = None
+        self.best_energy = None
+
+        self.tm_indices = None
+        self.na_template = None
+        self.na_site_indices = None
+        self.na_occupation = None
+
+        if self.out_dir is not None:
+            self._prepare_output_dirs()
+            self._save_settings()
+
+    # ============================================================
+    # IO
+    # ============================================================
+
+    def _prepare_output_dirs(self):
+        """Create the output directories after run configuration is known."""
+        self.out_dir.mkdir(parents=True, exist_ok=True)
+        self.pool_dir = self.out_dir / "pool"
+        self.pool_dir.mkdir(parents=True, exist_ok=True)
+
+    def _configure_run(self, structure=None, mode=None, out_dir=None, **options):
+        """Apply and validate parameters supplied when starting a run."""
+        unknown_options = set(options) - self.RUN_OPTIONS
+        if unknown_options:
+            names = ", ".join(sorted(unknown_options))
+            raise TypeError(f"Unknown run option(s): {names}")
+
+        if structure is not None:
+            self.structure = self._load_structure(structure)
+        if mode is not None:
+            self.mode = mode
+        if out_dir is not None:
+            self.out_dir = Path(out_dir)
+
+        for name, value in options.items():
+            if name == "full_na_structure":
+                value = (
+                    self._load_structure(value)
+                    if value is not None
+                    else None
+                )
+            setattr(self, name, value)
+
+        if self.structure is None:
+            raise ValueError("structure must be provided to run().")
+        if self.mode is None:
+            raise ValueError("mode must be provided to run().")
+        if self.out_dir is None:
+            raise ValueError("out_dir must be provided to run().")
+
+        # Compatibility with the previous mode + initialize interface.
+        if self.mode == "TM":
+            self.mode = (
+                "TM_MC_random"
+                if self.initialize == "random"
+                else "TM_MC_input"
+            )
+        elif self.mode == "Na" and self.initialize == "input":
+            self.mode = "Na_MC_input"
+
+        if self.mode not in self.MODES:
+            valid = ", ".join(sorted(self.MODES))
+            raise ValueError(f"mode must be one of: {valid}.")
+
+        if self.mode == "TM_MC_random":
+            if self.tm_original_element is None or self.tm_ratios is None:
+                raise ValueError(
+                    "TM_MC_random requires tm_original_element and tm_ratios."
+                )
+            self.initialize = "random"
+        elif self.mode == "TM_MC_input":
+            self.initialize = "input"
+        elif self.mode == "Na_MC_input":
+            if self.full_na_structure is None:
+                raise ValueError(
+                    "Na_MC_input requires full_na_structure."
+                )
+            self.initialize = "input"
+
+        random.seed(self.seed)
+        np.random.seed(self.seed)
+        if getattr(self, "_history", None) is not None:
+            self._history.close()
+            self._history = None
+        if self.min_improvement is not None:
+            self.energy_tol = float(self.min_improvement)
+        if isinstance(self.max_duplicate_trials, bool) or not isinstance(self.max_duplicate_trials, int) or self.max_duplicate_trials <= 0:
+            raise ValueError("max_duplicate_trials must be a positive integer")
+        self._configure_structure_checks()
+        self.actual_mc_steps = 0
+        self.stop_reason = None
+        self.duplicate_rejections = 0
+        self.visited = set()
+        self.trace = []
+        self.pool = []
+        self.current_structure = None
+        self.current_eval = None
+        self.current_key = None
+        self.best_energy = None
+        self.last_improve_step = 0
+        self._prepare_output_dirs()
+        self._save_settings()
+
+    def _load_structure(self, structure):
+        if isinstance(structure, Structure):
+            return structure.copy()
+        return Structure.from_file(structure)
+
+    def _save_vasp(self, structure, path):
+        structure.copy().sort().to(str(path), fmt="poscar")
+
+    def _json_default(self, obj):
+        if isinstance(obj, Path):
+            return str(obj)
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        raise TypeError(
+            f"Object of type {obj.__class__.__name__} is not JSON serializable"
+        )
+
+    def _save_json(self, data, path):
+        with gzip.open(f"{path}.gz", "wt", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, default=self._json_default)
+
+    def _save_settings(self):
+        model_paths = self.model_paths
+        if model_paths is None and self.model_path is not None:
+            model_paths = [self.model_path]
+
+        self._save_json(
+            {
+                "mode": self.mode,
+                "temperature": self.temperature,
+                "max_steps": self.max_steps,
+                "seed": self.seed,
+                "pool_size": self.pool_size,
+                "fmax": self.fmax,
+                "relax_steps": self.relax_steps,
+                "relax_cell": self.relax_cell,
+                "save_every": self.save_every,
+                "patience": self.patience,
+                "energy_tol": self.energy_tol,
+                "tm_original_element": self.tm_original_element,
+                "tm_ratios": self.tm_ratios,
+                "na_remove_num": self.na_remove_num,
+                "max_duplicate_trials": self.max_duplicate_trials,
+                "save_relax_traj": self.save_relax_traj,
+                "structure_check_parameters": self._check_settings,
+                "structure_check_uncertain_policy": "retain_with_evidence",
+                "model_path": str(self.model_path) if self.model_path else None,
+                "model_paths": (
+                    [str(p) for p in model_paths]
+                    if model_paths is not None
+                    else None
+                ),
+                "committee_size": self.committee_size,
+                "main_model_index": self.main_model_index,
+                "model_type": self.model_type,
+                "device": self.device,
+                "mace_head": self.mace_head,
+                "mace_default_dtype": self.mace_default_dtype,
+                "accept_energy": "main_model_energy_per_atom",
+                "trajectory_contains_structure": True,
+                "trajectory_contains_committee_info": True,
+                
+            },
+            self.out_dir / "settings.json",
+        )
+
+    # ============================================================
+    # Model loading
+    # ============================================================
+
+
+    def _build_occ_from_input_structure(self):
+        full = self.full_na_structure
+        current = self.structure
+
+        full_na_coords = np.array([
+            site.frac_coords
+            for site in full
+            if site.specie.symbol == "Na"
+        ])
+
+        current_na_coords = np.array([
+            site.frac_coords
+            for site in current
+            if site.specie.symbol == "Na"
+        ])
+
+        if len(current_na_coords) > len(full_na_coords):
+            raise ValueError(
+                f"Input has {len(current_na_coords)} Na atoms, "
+                f"but full structure has only {len(full_na_coords)} Na sites."
+            )
+
+        # 周期性边界下的实际距离
+        distances = full.lattice.get_all_distances(
+            full_na_coords,
+            current_na_coords,
+        )
+
+        full_indices, _ = linear_sum_assignment(distances)
+        occupied = set(full_indices)
+
+        occ = [
+            "Na" if i in occupied else "Vac"
+            for i in range(len(full_na_coords))
+        ]
+
+        assert occ.count("Na") == len(current_na_coords)
+        return occ
+    def _load_models(self, model_path=None, model_paths=None):
+        if model_paths is not None and model_path is not None:
+            raise ValueError("Use either model_path or model_paths, not both.")
+
+        if model_paths is None:
+            if model_path is None:
+                if self.model_type == "mace":
+                    raise ValueError(
+                        "MACE requires model_path or model_paths. "
+                        "Pass one or more MACE model files."
+                    )
+                model_paths = [None]
+            else:
+                model_paths = [model_path]
+
+        if isinstance(model_paths, (str, Path)):
+            model_paths = [model_paths]
+
+        if len(model_paths) == 0:
+            raise ValueError("No model paths provided.")
+
+        if self.model_type == "mace":
+            return self._load_mace_models(model_paths)
+
+        try:
+            from chgnet.model import CHGNet
+        except ImportError as exc:
+            raise ImportError(
+                "CHGNet is required for model_type='chgnet'."
+            ) from exc
+
+        models = []
+
+        for i, path in enumerate(model_paths):
+            if isinstance(path, CHGNet):
+                print(f"Use pre-loaded CHGNet as model {i}")
+                models.append(path)
+            elif path is None:
+                print(f"Load default CHGNet as model {i}")
+                models.append(CHGNet.load())
+            else:
+                print(f"Load CHGNet model {i} from {path}")
+                models.append(CHGNet.from_file(path))
+
+        if len(models) == 0:
+            raise ValueError("No model loaded.")
+
+        return models
+
+    def _load_mace_models(self, model_paths):
+        """Load each MACE file as an independent committee member."""
+        try:
+            from mace.calculators import MACECalculator
+        except ImportError as exc:
+            raise ImportError(
+                "MACE is required for model_type='mace'. Install mace-torch "
+                "in the active Python environment."
+            ) from exc
+
+        models = []
+        for i, path in enumerate(model_paths):
+            if path is None:
+                raise ValueError("A MACE model path cannot be None.")
+
+            kwargs = {
+                "model_paths": str(path),
+                "device": self.device,
+                "default_dtype": self.mace_default_dtype,
+            }
+            if self.mace_head is not None:
+                kwargs["head"] = self.mace_head
+
+            print(f"Load MACE model {i} from {path}")
+            models.append(MACECalculator(**kwargs))
+
+        return models
+
+    def _build_relaxer(self):
+        if self.model_type == "mace":
+            return None
+
+        try:
+            from chgnet.model.dynamics import StructOptimizer
+        except ImportError as exc:
+            raise ImportError(
+                "CHGNet is required for model_type='chgnet'."
+            ) from exc
+
+        return StructOptimizer(
+            self.model,
+            optimizer_class="LBFGSLineSearch",
+        )
+
+    # ============================================================
+    # Initialization
+    # ============================================================
+
+    def _configure_structure_checks(self):
+        settings = {"minimum_distance": 0.6,
+                    "energy_jump_per_atom": DEFAULT_ENERGY_JUMP_PER_ATOM}
+        supplied = dict(self.structure_check_parameters or {})
+        if set(supplied) - set(settings):
+            raise ValueError("unknown structure_check_parameters")
+        settings.update(supplied)
+        if any(isinstance(v, bool) or not isinstance(v, (int, float))
+               or not math.isfinite(v) or v <= 0 for v in settings.values()):
+            raise ValueError("structure check thresholds must be finite and positive")
+        self._check_settings = settings
+        self._framework_reference = None
+        self.structure_check_counts = {"basic": 0, "framework": 0, "rejected": 0, "uncertain": 0}
+
+    def _prepare_structure_check(self, structure):
+        basic = check_structure(structure, minimum_distance=self._check_settings["minimum_distance"])
+        if basic["status"] == "invalid":
+            raise ValueError(f"invalid initial structure: {basic}")
+        # Never promote a relaxed current state into the trusted reference.
+        self._framework_reference = LayeredFrameworkReference(
+            structure, minimum_distance=self._check_settings["minimum_distance"]
+        )
+
+    def _main_energy(self, evaluation):
+        """Return the main model's finite per-atom energy; never fall back to QBC mean."""
+        values = evaluation.get("energy_per_model_per_atom")
+        if not isinstance(values, (list, tuple, np.ndarray)) or not 0 <= self.main_model_index < len(values):
+            raise ValueError("main_model_energy_missing")
+        value = float(values[self.main_model_index])
+        if not math.isfinite(value):
+            raise ValueError("main_model_energy_not_finite")
+        return value
+
+    def _check_candidate(self, structure, evaluation, *, initial=False):
+        monitor = evaluation.get("extrapolation_monitor") or {}
+        if monitor.get("extrapolation_failure") is True:
+            import hashlib
+            failures = getattr(self, "extrapolation_failures", None)
+            if failures is None:
+                failures = self.extrapolation_failures = []
+            path = self.out_dir / f"extrapolation_{len(failures):06d}.vasp"
+            self._save_vasp(structure, path)
+            item = {"structure_path": str(path.resolve()),
+                    "structure_checksum": hashlib.sha256(path.read_bytes()).hexdigest(),
+                    "extrapolation_monitor": monitor, "initial": bool(initial)}
+            failures.append(item)
+            result = {"status": "invalid", "reason": "extrapolation_failure",
+                      "extrapolation_monitor": monitor}
+            evaluation["structure_check"] = result
+            if initial:
+                raise InitialExtrapolationFailure(item)
+            return result
+        energy = self._main_energy(evaluation)
+        jumped = (not initial and math.isfinite(energy) and
+                  abs(energy - self._main_energy(self.current_eval)) >=
+                  self._check_settings["energy_jump_per_atom"])
+        competitive = (initial or len(self.pool) < self.pool_size or
+                       energy <= self.pool[-1]["energy"])
+        full = initial or jumped or competitive
+        result = check_structure(
+            structure, reference=self._framework_reference,
+            minimum_distance=self._check_settings["minimum_distance"],
+            energy_per_atom=energy, check_framework=full,
+        )
+        self.structure_check_counts["basic"] += 1
+        if result["scope"] == "framework":
+            self.structure_check_counts["framework"] += 1
+        if result["status"] in {"invalid", "uncertain"}:
+            key = "rejected" if result["status"] == "invalid" else "uncertain"
+            self.structure_check_counts[key] += 1
+        # Keep trace/pool compact: full graphs are available from the public checker.
+        result = compact_structure_check(result)
+        result["energy_jump_triggered"] = bool(jumped)
+        evaluation["structure_check"] = result
+        if initial and result["status"] == "invalid":
+            self.stop_reason = "invalid_initial_structure"
+            self.trace.append({"step": 0, "status": "initial_structure_rejected", "structure_check": result})
+            self._save_checkpoint()
+            raise ValueError(f"invalid initial structure after relaxation: {result}")
+        return result
+
+    def prepare(self):
+        if self.mode.startswith("TM_MC_"):
+            self._prepare_tm()
+        else:
+            self._prepare_na()
+
+    def _prepare_tm(self):
+
+        s = self.structure.copy()
+
+        if self.initialize == "random":
+
+            if (
+                self.tm_original_element is None
+                or self.tm_ratios is None
+            ):
+                raise ValueError(
+                    "TM random initialization needs "
+                    "tm_original_element and tm_ratios."
+                )
+
+            self.tm_indices = [
+                i
+                for i, site in enumerate(s)
+                if site.specie.symbol == self.tm_original_element
+            ]
+
+            if len(self.tm_indices) == 0:
+                raise ValueError(
+                    f"No {self.tm_original_element} sites found."
+                )
+
+            species = self._species_from_ratios(
+                ratios=self.tm_ratios,
+                total=len(self.tm_indices),
+            )
+
+            random.shuffle(species)
+
+            for idx, elem in zip(self.tm_indices, species):
+                s[idx] = elem
+
+        elif self.initialize == "input":
+            self.tm_indices = [
+                i
+                for i, site in enumerate(s)
+                if site.specie.symbol not in {"Na", "O"}
+            ]
+
+            if len(self.tm_indices) == 0:
+                raise ValueError(
+                    "No TM sites found in the input structure."
+                )
+
+        else:
+            raise ValueError(
+                "initialize must be 'random' or 'input'"
+            )
+
+        self._save_vasp(
+            s,
+            self.out_dir / "initial_unrelaxed.vasp"
+        )
+
+        self._prepare_structure_check(s)
+
+        relaxed, eval_data, relax_traj = self._relax_and_evaluate(
+            s,
+            traj_dir=self.out_dir,
+        )
+
+        self._check_candidate(relaxed, eval_data, initial=True)
+
+        self.current_structure = relaxed
+        self.current_eval = eval_data
+        self.current_key = self._tm_key(relaxed)
+        self.best_energy = self._main_energy(eval_data)
+        self.last_improve_step = 0
+
+        self.visited.add(self.current_key)
+
+        self._update_pool(
+            structure=relaxed,
+            eval_data=eval_data,
+            key=self.current_key,
+            step=0,
+            relax_traj=relax_traj,
+        )
+
+        self._save_vasp(
+            relaxed,
+            self.out_dir / "initial_relaxed.vasp"
+        )
+
+    def _prepare_na(self):
+        full = self.full_na_structure.copy()
+        self.na_template = full.copy()
+        self.na_site_indices = [
+            i
+            for i, site in enumerate(full)
+            if site.specie.symbol == "Na"
+        ]
+        occ = self._build_occ_from_input_structure()
+
+        if len(occ) != len(self.na_site_indices):
+            raise RuntimeError(
+                "Occupation length does not match Na template."
+            )
+
+        self.na_occupation = occ
+
+        if self.occupation_history_scope or self.occupation_reference_file:
+            if not self.occupation_history_scope:
+                from .occupation_history import decode_snapshot
+                self.occupation_history_scope = decode_snapshot(Path(self.occupation_reference_file).read_bytes())[0]["scope"]
+            count, basis = site_layout(full)
+            self._history = ReferenceOccupations(
+                self.occupation_history_scope, count, basis,
+                seed=self.occupation_history_seed, reference_file=self.occupation_reference_file,
+            )
+            self.visited = self._history
+
+        s = self._structure_from_na_occ(occ)
+
+        self._save_vasp(s, self.out_dir / "initial_unrelaxed.vasp")
+
+        self._prepare_structure_check(s)
+
+        relaxed, eval_data, relax_traj = self._relax_and_evaluate(
+            s,
+            traj_dir=self.out_dir,
+        )
+
+        self._check_candidate(relaxed, eval_data, initial=True)
+
+        self.current_structure = relaxed
+        self.current_eval = eval_data
+        self.current_key = self._na_key(occ)
+        self.best_energy = self._main_energy(eval_data)
+        self.last_improve_step = 0
+
+        self._record_occupation(self.current_key)
+
+        self._update_pool(
+            structure=relaxed,
+            eval_data=eval_data,
+            key=self.current_key,
+            step=0,
+            relax_traj=relax_traj,
+        )
+
+        self._save_vasp(relaxed, self.out_dir / "initial_relaxed.vasp")
+
+    def _na_mc_has_no_valid_swap(self):
+        """Return whether zero or full Na occupancy prevents a Na/Vac swap."""
+        input_na_count = sum(
+            site.specie.symbol == "Na" for site in self.structure
+        )
+        full_na_count = sum(
+            site.specie.symbol == "Na" for site in self.full_na_structure
+        )
+        return input_na_count == 0 or input_na_count == full_na_count
+
+    def _species_from_ratios(self, ratios, total):
+        elems = list(ratios.keys())
+        vals = np.array(list(ratios.values()), dtype=float)
+        vals /= vals.sum()
+
+        raw = vals * total
+        counts = np.floor(raw).astype(int)
+        remain = total - counts.sum()
+
+        for i in np.argsort(-(raw - counts))[:remain]:
+            counts[i] += 1
+
+        species = []
+
+        for elem, count in zip(elems, counts):
+            species.extend([elem] * int(count))
+
+        return species
+
+    # ============================================================
+    # Keys and builders
+    # ============================================================
+
+    def _tm_key(self, structure):
+        return tuple(structure[i].specie.symbol for i in self.tm_indices)
+
+    def _na_key(self, occ):
+        return pack_occupation(occ)
+
+    def _record_occupation(self, key):
+        self.visited.add(key)
+        if self._history is not None:
+            self._history.write_delta(self.out_dir / "mc_occupations.bin")
+
+    def _structure_from_na_occ(self, occ):
+        s = self.na_template.copy()
+
+        remove_indices = [
+            site_idx
+            for o, site_idx in zip(occ, self.na_site_indices)
+            if o == "Vac"
+        ]
+
+        for idx in sorted(remove_indices, reverse=True):
+            s.remove_sites([idx])
+
+        return s
+
+    # ============================================================
+    # CHGNet relax / evaluate / trajectory
+    # ============================================================
+
+    def _relax_with_main_model(self, structure):
+        if self.model_type == "mace":
+            return self._relax_with_mace(structure)
+
+        if self.relaxation_monitor_factory is not None:
+            raise RuntimeError("collapse monitoring is not supported by the CHGNet relaxation backend")
+
+        return self.relaxer.relax(
+            structure,
+            fmax=self.fmax,
+            steps=self.relax_steps,
+            relax_cell=self.relax_cell,
+            verbose=False,
+        )
+
+    def _relax_with_mace(self, structure):
+        """Relax with the selected MACE calculator and retain all frames."""
+        atoms = AseAtomsAdaptor.get_atoms(structure)
+        atoms.calc = self.model
+        trajectory = [atoms.copy()]
+
+        target = FrechetCellFilter(atoms) if self.relax_cell else atoms
+        optimizer = LBFGS(target, logfile=None)
+
+        if self.relaxation_monitor_factory is not None:
+            monitor = self.relaxation_monitor_factory(atoms)
+            optimizer.attach(lambda: monitor(atoms), interval=1)
+
+        def capture_frame():
+            trajectory.append(atoms.copy())
+
+        optimizer.attach(capture_frame, interval=1)
+        optimizer.run(fmax=self.fmax, steps=self.relax_steps)
+        monitor_result = None
+        if self.relaxation_monitor_factory is not None and hasattr(monitor, "check_final"):
+            difference = monitor.check_final(atoms)
+            if difference is not None:
+                failures = list(getattr(monitor, "failures", []))
+                monitor_result = {"final_feature_difference": float(difference),
+                                  "extrapolation_failure": bool(failures), "failures": failures}
+
+        final_structure = AseAtomsAdaptor.get_structure(atoms)
+        observations = getattr(self, "relaxation_observations", None)
+        if observations is None:
+            observations = self.relaxation_observations = []
+        observation = {
+            "structure_id": _relaxation_input_identity(structure),
+            "identity_scheme": "periodic_input_v1",
+            "monitor_complete": monitor_result is not None,
+            "extrapolation_failure": monitor_result.get("extrapolation_failure") if monitor_result else None,
+            "final_feature_difference": monitor_result.get("final_feature_difference") if monitor_result else None,
+        }
+        if monitor_result is not None:
+            import hashlib
+
+            if self.out_dir is None:
+                raise ValueError("monitored_mc_requires_output_directory")
+            frame = self.out_dir / f"mc_relaxation_frame_{len(observations):06d}.vasp"
+            if frame.exists():
+                raise FileExistsError("monitored_mc_frame_already_exists:" + str(frame))
+            self._save_vasp(final_structure, frame)
+            observation.update(structure_path=str(frame.resolve()),
+                               structure_checksum=hashlib.sha256(frame.read_bytes()).hexdigest())
+        observations.append(observation)
+        return {
+            "final_structure": final_structure,
+            "trajectory": trajectory,
+            "extrapolation_monitor": monitor_result,
+        }
+
+    def _predict_energy_force(self, model, structure):
+        if self.model_type == "mace":
+            atoms = AseAtomsAdaptor.get_atoms(structure)
+            atoms.calc = model
+            energy_per_atom = atoms.get_potential_energy() / len(atoms)
+            forces = atoms.get_forces()
+            return float(energy_per_atom), np.asarray(forces, dtype=float)
+
+        pred = model.predict_structure(structure)
+
+        energy_per_atom = pred.get("e", None)
+        forces = pred.get("f", None)
+
+        if energy_per_atom is None:
+            raise RuntimeError("CHGNet prediction does not contain energy key 'e'.")
+
+        if forces is None:
+            raise RuntimeError("CHGNet prediction does not contain force key 'f'.")
+
+        return float(energy_per_atom), np.array(forces, dtype=float)
+
+    def _evaluate_committee(self, structure):
+        n_atoms = len(structure)
+
+        energies_per_atom = []
+        forces = []
+
+        for model in self.models:
+            e_per_atom, f = self._predict_energy_force(model, structure)
+            energies_per_atom.append(e_per_atom)
+            forces.append(f)
+
+        energies_per_atom = np.array(energies_per_atom, dtype=float)
+        energies_total = energies_per_atom * n_atoms
+        forces = np.array(forces, dtype=float)  # K, N, 3
+
+        energy_mean_per_atom = float(np.mean(energies_per_atom))
+        energy_std_per_atom = float(np.std(energies_per_atom))
+        energy_var_per_atom = float(energy_std_per_atom**2)
+
+        force_mean = np.mean(forces, axis=0)
+        force_diff = forces - force_mean[None, :, :]
+
+        force_atom_deviation = np.sqrt(
+            np.mean(np.sum(force_diff**2, axis=2), axis=0)
+        )
+
+        force_uncertainty_per_atom = float(np.mean(force_atom_deviation))
+        force_uncertainty_max = float(np.max(force_atom_deviation))
+
+        return {
+            "n_atoms": int(n_atoms),
+            "energy_mean_per_atom": energy_mean_per_atom,
+            "energy_std_per_atom": energy_std_per_atom,
+            "energy_var_per_atom": energy_var_per_atom,
+            "energy_per_model_per_atom": [
+                float(x) for x in energies_per_atom.tolist()
+            ],
+            "energy_per_model_total": [
+                float(x) for x in energies_total.tolist()
+            ],
+            "force_uncertainty_per_atom": force_uncertainty_per_atom,
+            "force_uncertainty_var_per_atom": float(force_uncertainty_per_atom**2),
+            "force_uncertainty_max": force_uncertainty_max,
+            "force_uncertainty_var_max": float(force_uncertainty_max**2),
+            "force_atom_deviation": [
+                float(x) for x in force_atom_deviation.tolist()
+            ],
+        }
+
+    def _structure_to_json_dict(self, structure):
+        return structure.as_dict()
+
+    def _make_traj_frame_json(self, step, structure, eval_data):
+        return {
+            "step": step,
+            "structure": self._structure_to_json_dict(structure),
+            "n_atoms": int(eval_data["n_atoms"]),
+            "energy_main_model_per_atom": self._main_energy(eval_data),
+            "energy_mean_per_atom": float(eval_data["energy_mean_per_atom"]),
+            "energy_std_per_atom": float(eval_data["energy_std_per_atom"]),
+            "energy_var_per_atom": float(eval_data["energy_var_per_atom"]),
+            "energy_per_model_per_atom": [
+                float(x) for x in eval_data["energy_per_model_per_atom"]
+            ],
+            "energy_per_model_total": [
+                float(x) for x in eval_data["energy_per_model_total"]
+            ],
+            "force_uncertainty_per_atom": float(
+                eval_data["force_uncertainty_per_atom"]
+            ),
+            "force_uncertainty_var_per_atom": float(
+                eval_data["force_uncertainty_var_per_atom"]
+            ),
+            "force_uncertainty_max": float(eval_data["force_uncertainty_max"]),
+            "force_uncertainty_var_max": float(
+                eval_data["force_uncertainty_var_max"]
+            ),
+            "force_atom_deviation": [
+                float(x) for x in eval_data["force_atom_deviation"]
+            ],
+        }
+
+    def _get_traj_structures(self, trajectory):
+        """
+        Extract pymatgen structures from CHGNet TrajectoryObserver.
+
+        For many CHGNet versions:
+            trajectory.atoms          = one ASE Atoms object
+            trajectory.atom_positions = list of cartesian positions, one per step
+            trajectory.cells          = list of cells, one per step
+
+        We reconstruct every relaxation frame using:
+            species from trajectory.atoms
+            positions from trajectory.atom_positions
+            cells from trajectory.cells
+        """
+
+        if trajectory is None:
+            return []
+
+        structures = []
+
+        # Case 1: normal list/tuple of full structures or ASE Atoms
+        if isinstance(trajectory, (list, tuple)):
+            for frame in trajectory:
+                if isinstance(frame, Structure):
+                    structures.append(frame.copy())
+                else:
+                    structures.append(AseAtomsAdaptor.get_structure(frame))
+            return structures
+
+        # Case 2: CHGNet TrajectoryObserver
+        if (
+            hasattr(trajectory, "atoms")
+            and hasattr(trajectory, "atom_positions")
+            and hasattr(trajectory, "cells")
+        ):
+            atoms = trajectory.atoms
+
+            # trajectory.atoms is usually ONE ASE Atoms object, not a list of frames.
+            species = atoms.get_chemical_symbols()
+
+            positions_list = trajectory.atom_positions
+            cells_list = trajectory.cells
+
+            for positions, cell in zip(positions_list, cells_list):
+                struct = Structure(
+                    lattice=cell,
+                    species=species,
+                    coords=positions,
+                    coords_are_cartesian=True,
+                )
+                structures.append(struct)
+
+            return structures
+
+        # Case 3: fallback if trajectory.atoms is really a list of ASE Atoms
+        if hasattr(trajectory, "atoms"):
+            atoms_obj = trajectory.atoms
+
+            if isinstance(atoms_obj, (list, tuple)):
+                for frame in atoms_obj:
+                    if isinstance(frame, Structure):
+                        structures.append(frame.copy())
+                    else:
+                        structures.append(AseAtomsAdaptor.get_structure(frame))
+                return structures
+
+            # If it is a single ASE Atoms object, convert only one frame
+            try:
+                return [AseAtomsAdaptor.get_structure(atoms_obj)]
+            except Exception:
+                return []
+
+        return []
+
+    @staticmethod
+    def _structures_match(first, second, atol=1e-8):
+        """Return whether two structures represent the same periodic geometry."""
+        if len(first) != len(second):
+            return False
+
+        first_species = [site.specie.symbol for site in first]
+        second_species = [site.specie.symbol for site in second]
+        if first_species != second_species:
+            return False
+
+        if not np.allclose(first.lattice.matrix, second.lattice.matrix, atol=atol):
+            return False
+
+        frac_diff = np.asarray(first.frac_coords) - np.asarray(second.frac_coords)
+        frac_diff -= np.rint(frac_diff)
+        return bool(np.allclose(frac_diff, 0.0, atol=atol))
+
+    def _relax_and_evaluate(self, structure, traj_dir=None):
+        relax_result = self._relax_with_main_model(structure)
+
+        relaxed = relax_result["final_structure"]
+        trajectory = relax_result.get("trajectory", None)
+
+        traj_json = []
+        traj_structures = self._get_traj_structures(trajectory) if self.save_relax_traj else []
+
+        # Some CHGNet versions start their trajectory after the first optimizer
+        # update. Always expose the unrelaxed input as step 0, without duplicating
+        # it when the backend already recorded that frame (as MACE normally does).
+        if self.save_relax_traj and (not traj_structures or not self._structures_match(
+            structure,
+            traj_structures[0],
+        )):
+            traj_structures.insert(0, structure.copy())
+
+        for istep, pmg_struct in enumerate(traj_structures):
+            eval_data = self._evaluate_committee(pmg_struct)
+            traj_json.append(
+                self._make_traj_frame_json(
+                    step=int(istep),
+                    structure=pmg_struct,
+                    eval_data=eval_data,
+                )
+            )
+
+        final_eval = self._evaluate_committee(relaxed)
+        if relax_result.get("extrapolation_monitor") is not None:
+            final_eval["extrapolation_monitor"] = relax_result["extrapolation_monitor"]
+
+        # 防止 trajectory 没有最后一步，或者最后一步和 final_structure 不完全一致
+        if self.save_relax_traj:
+            traj_json.append(
+                self._make_traj_frame_json(
+                    step="final",
+                    structure=relaxed,
+                    eval_data=final_eval,
+                )
+            )
+
+        if self.save_relax_traj and traj_dir is not None:
+            traj_dir.mkdir(parents=True, exist_ok=True)
+            self._save_json(traj_json, traj_dir / "initial_relax_traj.json")
+
+        return relaxed, final_eval, traj_json
+
+    # ============================================================
+    # Trial moves
+    # ============================================================
+
+    def _trial(self):
+        if self.mode.startswith("TM_MC_"):
+            return self._trial_tm()
+        return self._trial_na()
+
+    def _trial_tm(self):
+        for _ in range(self.max_duplicate_trials):
+            s = self.current_structure.copy()
+
+            i, j = self._choose_two_different_sites(
+                structure=s,
+                indices=self.tm_indices,
+            )
+
+            ei = s[i].specie.symbol
+            ej = s[j].specie.symbol
+
+            s[i] = ej
+            s[j] = ei
+
+            key = self._tm_key(s)
+
+            if key not in self.visited:
+                return s, key, None
+
+        return None, None, None
+
+    def _trial_na(self):
+        for _ in range(self.max_duplicate_trials):
+            occ = list(self.na_occupation)
+
+            na_pos = [i for i, x in enumerate(occ) if x == "Na"]
+            vac_pos = [i for i, x in enumerate(occ) if x == "Vac"]
+
+            i = random.choice(na_pos)
+            j = random.choice(vac_pos)
+
+            occ[i], occ[j] = occ[j], occ[i]
+
+            key = self._na_key(occ)
+
+            if key not in self.visited:
+                s = self._structure_from_na_occ(occ)
+                return s, key, occ
+            self.duplicate_rejections += 1
+
+        return None, None, None
+
+    def _choose_two_different_sites(self, structure, indices):
+        for _ in range(1000):
+            i, j = random.sample(indices, 2)
+
+            if structure[i].specie.symbol != structure[j].specie.symbol:
+                return i, j
+
+        raise RuntimeError("Cannot find two different species to swap.")
+
+    # ============================================================
+    # MC
+    # ============================================================
+
+    def _accept(self, trial_eval):
+        trial_energy = self._main_energy(trial_eval)
+        current_energy = self._main_energy(self.current_eval)
+        dE = trial_energy - current_energy
+
+        if dE <= 0:
+            return True, 1.0, dE
+
+        prob = math.exp(-dE / (self.kb * self.temperature))
+        return random.random() < prob, prob, dE
+
+    def _should_stop(self, step):
+        if self.patience is None:
+            return False
+
+        return step - self.last_improve_step >= self.patience
+
+    # ============================================================
+    # Save pool / checkpoint
+    # ============================================================
+
+    def _summary_eval(self, eval_data):
+        return {
+            "n_atoms": int(eval_data["n_atoms"]),
+            "energy_main_model_per_atom": self._main_energy(eval_data),
+            "energy_mean_per_atom": float(eval_data["energy_mean_per_atom"]),
+            "energy_std_per_atom": float(eval_data["energy_std_per_atom"]),
+            "energy_var_per_atom": float(eval_data["energy_var_per_atom"]),
+            "force_uncertainty_per_atom": float(
+                eval_data["force_uncertainty_per_atom"]
+            ),
+            "force_uncertainty_var_per_atom": float(
+                eval_data["force_uncertainty_var_per_atom"]
+            ),
+            "force_uncertainty_max": float(eval_data["force_uncertainty_max"]),
+            "force_uncertainty_var_max": float(
+                eval_data["force_uncertainty_var_max"]
+            ),
+            "energy_per_model_per_atom": [
+                float(x) for x in eval_data["energy_per_model_per_atom"]
+            ],
+        }
+
+    def _update_pool(self, structure, eval_data, key, step, relax_traj=None):
+        self.pool.append(
+            {
+                "step": int(step),
+                "energy": self._main_energy(eval_data),
+                "eval": dict(eval_data),
+                "key": key,
+                "structure": structure.copy(),
+                "relax_traj": relax_traj if relax_traj is not None else [],
+            }
+        )
+
+        unique = {}
+
+        for item in self.pool:
+            k = item["key"]
+
+            if k not in unique or item["energy"] < unique[k]["energy"]:
+                unique[k] = item
+
+        self.pool = sorted(unique.values(), key=lambda x: x["energy"])
+        self.pool = self.pool[: self.pool_size]
+
+    def _save_pool(self):
+        if self.pool_dir.exists():
+            shutil.rmtree(self.pool_dir)
+
+        self.pool_dir.mkdir(parents=True, exist_ok=True)
+
+        summary = []
+
+        for rank, item in enumerate(self.pool):
+            prefix = f"rank_{rank:03d}_step_{item['step']:04d}"
+
+            structure_file = self.pool_dir / f"{prefix}.vasp"
+            traj_file = self.pool_dir / f"{prefix}_relax_traj.json"
+
+            self._save_vasp(item["structure"], structure_file)
+            if self.save_relax_traj:
+                self._save_json(item["relax_traj"], traj_file)
+
+            eval_data = item["eval"]
+
+            summary.append(
+                {
+                    "rank": int(rank),
+                    "step": int(item["step"]),
+                    "energy_main_model_per_atom": self._main_energy(eval_data),
+                    "energy_per_model_per_atom": [float(x) for x in eval_data["energy_per_model_per_atom"]],
+                    "energy_mean_per_atom": float(
+                        eval_data["energy_mean_per_atom"]
+                    ),
+                    "energy_std_per_atom": float(
+                        eval_data["energy_std_per_atom"]
+                    ),
+                    "energy_var_per_atom": float(
+                        eval_data["energy_var_per_atom"]
+                    ),
+                    "force_uncertainty_per_atom": float(
+                        eval_data["force_uncertainty_per_atom"]
+                    ),
+                    "force_uncertainty_var_per_atom": float(
+                        eval_data["force_uncertainty_var_per_atom"]
+                    ),
+                    "force_uncertainty_max": float(
+                        eval_data["force_uncertainty_max"]
+                    ),
+                    "force_uncertainty_var_max": float(
+                        eval_data["force_uncertainty_var_max"]
+                    ),
+                    "structure_file": structure_file.name,
+                    "structure_check": eval_data.get("structure_check"),
+                    "relax_traj_file": traj_file.name if self.save_relax_traj else None,
+                    "relax_traj_contains_structure": self.save_relax_traj,
+                    "relax_traj_contains_committee_info": self.save_relax_traj,
+                    "relax_traj_n_frames": int(len(item["relax_traj"])),
+                }
+            )
+
+        self._save_json(summary, self.pool_dir / "pool_summary.json")
+
+    def _save_checkpoint(self):
+        self._save_json(self.trace, self.out_dir / "trace.json")
+
+        self._save_json(
+            {
+                "mode": self.mode,
+                "current": (
+                    self._summary_eval(self.current_eval)
+                    if self.current_eval is not None
+                    else None
+                ),
+                "best_energy_main_model_per_atom": self.best_energy,
+                "visited_count": len(self.visited),
+                "pool_size": len(self.pool),
+                "last_improve_step": self.last_improve_step,
+                "actual_mc_steps": getattr(self, "actual_mc_steps", 0),
+                "stop_reason": getattr(self, "stop_reason", None),
+                "duplicate_rejections": getattr(self, "duplicate_rejections", 0),
+                "structure_check_counts": self.structure_check_counts,
+            },
+            self.out_dir / "status.json",
+        )
+
+        self._save_pool()
+
+    # ============================================================
+    # Run
+    # ============================================================
+
+    def _run_relax(self):
+        """Relax one structure with the model committee without running MC.
+
+        The main model performs the relaxation and every model evaluates each
+        trajectory frame and the final structure. Output file names and data
+        fields match those produced for the initial structure by ``run()``.
+
+        Returns:
+            A tuple of ``(relaxed_structure, final_evaluation, trajectory)``.
+        """
+        input_structure = self.structure.copy()
+
+        # Keep repeated calls independent from an earlier MC or relaxation run.
+        self.visited = set()
+        self.trace = []
+        self.pool = []
+
+        self._save_vasp(
+            input_structure,
+            self.out_dir / "initial_unrelaxed.vasp",
+        )
+
+        self._prepare_structure_check(input_structure)
+
+        relaxed, eval_data, relax_traj = self._relax_and_evaluate(
+            input_structure,
+            traj_dir=self.out_dir,
+        )
+
+        self._check_candidate(relaxed, eval_data, initial=True)
+
+        self.current_structure = relaxed
+        self.current_eval = eval_data
+        self.current_key = ("relax_only",)
+        self.best_energy = self._main_energy(eval_data)
+        self.last_improve_step = 0
+        self.visited.add(self.current_key)
+
+        self._update_pool(
+            structure=relaxed,
+            eval_data=eval_data,
+            key=self.current_key,
+            step=0,
+            relax_traj=relax_traj,
+        )
+        self._save_vasp(
+            relaxed,
+            self.out_dir / "initial_relaxed.vasp",
+        )
+
+        self.trace = [
+            {
+                "step": 0,
+                "status": "relax_only",
+                **self._summary_eval(eval_data),
+            }
+        ]
+        self._save_checkpoint()
+
+        print(
+            "Relaxation done. "
+            f"Energy = {self.best_energy:.6f} eV/atom"
+        )
+        print(f"Results saved to {self.out_dir}")
+
+        return relaxed, eval_data, relax_traj
+
+    def run(self, structure=None, mode=None, out_dir=None, **options):
+        """Configure and execute one MC or relaxation run.
+
+        Args:
+            structure: Structure file path or pymatgen ``Structure``.
+            mode: One of ``TM_MC_random``, ``TM_MC_input``,
+                ``Na_MC_input``, or ``Relax``.
+            out_dir: Directory in which to save the run outputs.
+            **options: Optional run parameters such as ``max_steps``,
+                ``tm_ratios``, ``full_na_structure``, and ``patience``.
+
+        Returns:
+            For ``Relax`` and ``Na_MC_input`` without a valid Na/Vac swap, the
+            relaxed structure, final committee evaluation, and relaxation
+            trajectory. Other MC runs return ``None``.
+        """
+        self._configure_run(
+            structure=structure,
+            mode=mode,
+            out_dir=out_dir,
+            **options,
+        )
+
+        self.relaxation_observations = []
+        if self.mode == "Relax":
+            return self._run_relax()
+
+        if self.mode == "Na_MC_input" and self._na_mc_has_no_valid_swap():
+            print(
+                "Input structure has zero or full Na occupancy; "
+                "skip Na/Vac MC and relax directly."
+            )
+            return self._run_relax()
+
+        self.prepare()
+
+        step = 0
+        self.stop_reason = "max_steps"
+        while step < self.max_steps:
+            trial_s, trial_key, extra = self._trial()
+
+            if trial_s is None:
+                self.trace.append(
+                    {
+                        "step": int(step),
+                        "status": "duplicate_skipped",
+                        "current_energy_mean_per_atom": float(
+                            self.current_eval["energy_mean_per_atom"]
+                        ),
+                        "current_energy_std_per_atom": float(
+                            self.current_eval["energy_std_per_atom"]
+                        ),
+                        "current_force_uncertainty_per_atom": float(
+                            self.current_eval["force_uncertainty_per_atom"]
+                        ),
+                        "current_force_uncertainty_max": float(
+                            self.current_eval["force_uncertainty_max"]
+                        ),
+                        "best_energy_main_model_per_atom": float(self.best_energy),
+                        "visited_count": int(len(self.visited)),
+                    }
+                )
+                self.stop_reason = "duplicate_trial_limit"
+                break
+
+            trial_relaxed, trial_eval, trial_relax_traj = self._relax_and_evaluate(
+                trial_s
+            )
+            step += 1
+            self.actual_mc_steps = step
+            self._record_occupation(trial_key)
+
+            check = self._check_candidate(trial_relaxed, trial_eval)
+            if check["status"] == "invalid":
+                self.trace.append({
+                    "step": int(step), "status": "structure_rejected", "accepted": False,
+                    "structure_check": check,
+                    "trial_energy_mean_per_atom": float(trial_eval["energy_mean_per_atom"])
+                    if math.isfinite(trial_eval["energy_mean_per_atom"]) else None,
+                    "current_energy_mean_per_atom": float(self.current_eval["energy_mean_per_atom"]),
+                    "best_energy_main_model_per_atom": float(self.best_energy),
+                })
+                if self._should_stop(step):
+                    self.stop_reason = "patience"
+                    break
+                if step % self.save_every == 0:
+                    self._save_checkpoint()
+                continue
+
+            accepted, prob, dE = self._accept(trial_eval)
+ 
+            if accepted:
+                self.current_structure = trial_relaxed
+                self.current_eval = trial_eval
+                self.current_key = trial_key
+
+                if self.mode == "Na_MC_input":
+                    self.na_occupation = extra
+
+            trial_energy = self._main_energy(trial_eval)
+
+            if trial_energy < self.best_energy - self.energy_tol:
+                self.best_energy = trial_energy
+                self.last_improve_step = step
+
+            self._update_pool(
+                structure=trial_relaxed,
+                eval_data=trial_eval,
+                key=trial_key,
+                step=step,
+                relax_traj=trial_relax_traj,
+            )
+
+            self.trace.append(
+                {
+                    "step": int(step),
+                    "status": "normal",
+                    "structure_check": check,
+                    "accepted": bool(accepted),
+                    "accept_prob": float(prob),
+                    "delta_E_main_model_per_atom": float(dE),
+                    "visited_count": int(len(self.visited)),
+                    "trial_energy_mean_per_atom": float(
+                        trial_eval["energy_mean_per_atom"]
+                    ),
+                    "trial_energy_std_per_atom": float(
+                        trial_eval["energy_std_per_atom"]
+                    ),
+                    "trial_energy_var_per_atom": float(
+                        trial_eval["energy_var_per_atom"]
+                    ),
+                    "trial_force_uncertainty_per_atom": float(
+                        trial_eval["force_uncertainty_per_atom"]
+                    ),
+                    "trial_force_uncertainty_var_per_atom": float(
+                        trial_eval["force_uncertainty_var_per_atom"]
+                    ),
+                    "trial_force_uncertainty_max": float(
+                        trial_eval["force_uncertainty_max"]
+                    ),
+                    "trial_force_uncertainty_var_max": float(
+                        trial_eval["force_uncertainty_var_max"]
+                    ),
+                    "trial_energy_per_model_per_atom": [
+                        float(x) for x in trial_eval["energy_per_model_per_atom"]
+                    ],
+                    "current_energy_mean_per_atom": float(
+                        self.current_eval["energy_mean_per_atom"]
+                    ),
+                    "current_energy_std_per_atom": float(
+                        self.current_eval["energy_std_per_atom"]
+                    ),
+                    "current_energy_var_per_atom": float(
+                        self.current_eval["energy_var_per_atom"]
+                    ),
+                    "current_force_uncertainty_per_atom": float(
+                        self.current_eval["force_uncertainty_per_atom"]
+                    ),
+                    "current_force_uncertainty_var_per_atom": float(
+                        self.current_eval["force_uncertainty_var_per_atom"]
+                    ),
+                    "current_force_uncertainty_max": float(
+                        self.current_eval["force_uncertainty_max"]
+                    ),
+                    "current_force_uncertainty_var_max": float(
+                        self.current_eval["force_uncertainty_var_max"]
+                    ),
+                    "best_energy_main_model_per_atom": float(self.best_energy),
+                }
+            )
+
+            if step % self.save_every == 0:
+                self._save_checkpoint()
+
+                print(
+                    f"[{step}] "
+                    f"current={self._main_energy(self.current_eval):.6f}, "
+                    f"current_Estd={self.current_eval['energy_std_per_atom']:.6f}, "
+                    f"current_Func={self.current_eval['force_uncertainty_per_atom']:.6f}, "
+                    f"best={self.best_energy:.6f}, "
+                    f"visited={len(self.visited)}"
+                )
+
+            if self._should_stop(step):
+                self.stop_reason = "patience"
+                self.trace.append(
+                    {
+                        "step": int(step),
+                        "status": "early_stop",
+                        "best_energy_main_model_per_atom": float(self.best_energy),
+                        "last_improve_step": int(self.last_improve_step),
+                        "patience": self.patience,
+                        "energy_tol": float(self.energy_tol),
+                    }
+                )
+                break
+
+        self._save_checkpoint()
+
+        print(f"Done. Best energy = {self.best_energy:.6f} eV/atom")
+        print(f"Results saved to {self.out_dir}")

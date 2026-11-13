@@ -1,0 +1,14 @@
+{
+  "default_profile": "bj-hpc",
+  "profiles": {
+    "bj-hpc": {
+      "display_name": "BJ-HPC",
+      "host": "hpc3.chinahpc.com",
+      "skill": "${USERPROFILE}/.codex/skills/electerm-operations/references/bj-hpc.md",
+      "repository": "/data/home/lichaoyue/Process_code",
+      "task_root": "/data/home/lichaoyue/0-Codex_task/<task-name>",
+      "environment": "按任务选择服务器已有环境；不自动套用本地 py1"
+    }
+  }
+}
+

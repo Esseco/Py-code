@@ -1,0 +1,38 @@
+# ======================
+# Python cache
+# ======================
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# ======================
+# Virtual environments
+# ======================
+.venv/
+venv/
+env/
+
+# ======================
+# Jupyter Notebook
+# ======================
+.ipynb_checkpoints/
+
+# ======================
+# Temporary files
+# ======================
+/chain-audit-*/
+*.log
+*.tmp
+*.bak
+
+# ======================
+# Project specific
+# ======================
+channel*
+.agents/
+/Example/
+/test/
+/MLIP_model/
+/docs/super*

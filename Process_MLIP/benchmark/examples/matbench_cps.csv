@@ -1,0 +1,10 @@
+model_id,cps,matbench_model,source,as_of,notes
+chgnet,0.400,CHGNet 0.3.0,https://openreview.net/pdf?id=JYxeI4AwhQ,2025-08-17,CPS-1 unique prototypes; published snapshot
+mace_mh1,,MACE-MH-1 omat_pbe,,,Exact entry and CPS not verified
+sevennet_nano,,SevenNet Nano cutoff 6.0 A,,,Single-task; CPS not verified
+sevennet_omni,0.849,SevenNet-Omni mpa,https://sevennet.readthedocs.io/en/latest/user_guide/pretrained.html,2026-10-28,Official documentation; local checkpoint identity inferred from filename
+mattersim_1m,,MatterSim v1.0.0 1M,,,Exact CPS not verified
+orb_direct,,ORB v3 direct inf omat,,,Exact CPS not verified
+mattersim_5m,0.767,MatterSim v1 5M,https://pubs.cstam.org.cn/data/article/gywlxb/preview/pdf/2025-1172.pdf,2026-10-28,Published leaderboard snapshot; checkpoint identity based on filename
+orb_conservative,,ORB v3 conservative inf omat,,,MPA score cannot be assigned to OMAT checkpoint
+mace_omat,,MACE OMAT 0 medium,,,Exact CPS not verified
