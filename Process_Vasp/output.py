@@ -12,6 +12,8 @@ from .results.magnetic_check import check_dft_magnetic_moments, check_layered_ox
 __all__ += ["check_dft_magnetic_moments", "check_layered_oxide_moments"]
 from .results.magnetic_check import read_dft_magnetic_data
 __all__.append("read_dft_magnetic_data")
+from .results.magnetism import read_element_moments
+__all__.append("read_element_moments")
 
 from .workflows.amset_crt import run_amset_crt
 __all__.append("run_amset_crt")

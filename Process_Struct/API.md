@@ -214,6 +214,26 @@ main()
 
 原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
 
+## `rocksalt_nacl`
+
+源文件：[examples/feature_sets.py](examples/feature_sets.py)，第 13 行。
+
+```python
+rocksalt_nacl()
+```
+
+Cubic NaCl with oxidation states, so CrystalNN resolves six neighbours.
+
+## `main`
+
+源文件：[examples/feature_sets.py](examples/feature_sets.py)，第 24 行。
+
+```python
+main()
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
 ## `main`
 
 源文件：[examples/octahedra.py](examples/octahedra.py)，第 8 行。
@@ -273,6 +293,469 @@ main()
 ```
 
 原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `FeatureResult`
+
+源文件：[features/api.py](features/api.py)，第 56 行。
+
+```python
+FeatureResult
+```
+
+Feature table for one structure.
+
+Attributes:
+    values: Structure-level column name to value, in column order.
+    sites: Site-level rows; each row always has ``site_index`` and
+        ``element`` plus the prefixed site columns of the enabled sets.
+    metadata: Set selection, level, per-set provider metadata, structure
+        summary and interpreter details needed to reproduce the run.
+    warnings: Warning texts emitted while computing; de-duplicated in
+        emission order.
+
+## `FeatureResult.names`
+
+源文件：[features/api.py](features/api.py)，第 75 行。
+
+```python
+FeatureResult.names(self)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `FeatureResult.site_names`
+
+源文件：[features/api.py](features/api.py)，第 79 行。
+
+```python
+FeatureResult.site_names(self)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `FeatureResult.to_vector`
+
+源文件：[features/api.py](features/api.py)，第 87 行。
+
+```python
+FeatureResult.to_vector(self)
+```
+
+Structure-level values as a float array in ``names`` order.
+
+## `FeatureResult.to_frame`
+
+源文件：[features/api.py](features/api.py)，第 92 行。
+
+```python
+FeatureResult.to_frame(self)
+```
+
+One-row DataFrame with structure-level columns.
+
+## `FeatureResult.to_site_frame`
+
+源文件：[features/api.py](features/api.py)，第 99 行。
+
+```python
+FeatureResult.to_site_frame(self)
+```
+
+Site-level rows as a DataFrame; no rows give an empty frame.
+
+## `FeatureExtractor`
+
+源文件：[features/api.py](features/api.py)，第 107 行。
+
+```python
+FeatureExtractor
+```
+
+Reusable extractor; expensive models are loaded once at construction.
+
+Args:
+    sets: Feature sets to compute; ``None`` means ``("geometry",)``.
+    level: ``"structure"``, ``"site"`` or ``"both"``.
+    encoder: MLIP encoder, ``"mace"`` or ``"m3gnet"``.
+    model_path: MLIP model path; required when ``sets`` contains ``"mlip"``.
+    device: Torch device for MACE.
+    head: Optional MACE head.
+    mlip_layers: MACE interaction layers, ``1``, ``2``, ``"all"`` or a list.
+    mlip_aggregate: ``"atom_mean"`` (one vector) or ``"element_mean"``
+        (one block per element, columns like ``mlip.Na.d000``).
+    geometry_options: Keyword arguments for ``StructureFeatureExtractor``.
+    cnn_options: Keyword arguments forwarded to pymatgen ``CrystalNN``.
+    cnn_site_filter: ``"all"`` or ``"tm"`` for the native CN layer.
+    cnn_fp_preset: matminer fingerprint preset, ``"cn"`` or ``"ops"``.
+    include: Glob patterns kept, matched against full column names.
+    exclude: Glob patterns dropped after ``include``.
+
+## `FeatureExtractor.__init__`
+
+源文件：[features/api.py](features/api.py)，第 128 行。
+
+```python
+FeatureExtractor.__init__(self, sets: str | Sequence[str] | None=None, *, level: str='structure', encoder: str='mace', model_path: str | None=None, device: str='cpu', head: str | None=None, mlip_layers: str | int | Sequence[int]='all', mlip_aggregate: str='atom_mean', geometry_options: dict[str, Any] | None=None, cnn_options: dict[str, Any] | None=None, cnn_site_filter: str='all', cnn_fp_preset: str='cn', include: Sequence[str] | None=None, exclude: Sequence[str] | None=None)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `FeatureExtractor.metadata`
+
+源文件：[features/api.py](features/api.py)，第 186 行。
+
+```python
+FeatureExtractor.metadata(self)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `FeatureExtractor.extract`
+
+源文件：[features/api.py](features/api.py)，第 203 行。
+
+```python
+FeatureExtractor.extract(self, structure_or_path: Any)
+```
+
+Compute the selected features for one structure.
+
+## `load_structure`
+
+源文件：[features/api.py](features/api.py)，第 347 行。
+
+```python
+load_structure(structure_or_path: Any)
+```
+
+Return a pymatgen ``Structure`` from a Structure, ASE Atoms or path.
+
+## `extract_features`
+
+源文件：[features/api.py](features/api.py)，第 377 行。
+
+```python
+extract_features(structure_or_path: Any, **kwargs: Any)
+```
+
+One-shot convenience wrapper; rebuilds the extractor on every call.
+
+Use :class:`FeatureExtractor` for batches so models are loaded once.
+
+## `extract_many`
+
+源文件：[features/api.py](features/api.py)，第 386 行。
+
+```python
+extract_many(structures: Iterable[Any], *, return_sites: bool=False, **kwargs: Any)
+```
+
+Extract features for many structures; one bad structure does not abort.
+
+Returns a DataFrame with ``status``, ``error`` and ``formula`` columns in
+addition to the feature columns.  With ``return_sites=True`` returns
+``(structure_frame, site_frame)``, where the site frame carries a
+``structure_index`` column.
+
+## `CrystalNNCounter`
+
+源文件：[features/crystalnn.py](features/crystalnn.py)，第 52 行。
+
+```python
+CrystalNNCounter
+```
+
+Coordination numbers and their distribution from pymatgen ``CrystalNN``.
+
+Args:
+    options: Keyword arguments forwarded to ``CrystalNN``; empty by default,
+        which keeps pymatgen's own defaults (no oxidation-state guessing).
+    site_filter: ``"all"`` for every site or ``"tm"`` for transition-metal
+        sites only.
+    tm_elements: Elements treated as transition metals when
+        ``site_filter="tm"``.
+
+## `CrystalNNCounter.__init__`
+
+源文件：[features/crystalnn.py](features/crystalnn.py)，第 66 行。
+
+```python
+CrystalNNCounter.__init__(self, options: dict[str, Any] | None=None, site_filter: str='all', tm_elements: Sequence[str] | None=None)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `CrystalNNCounter.metadata`
+
+源文件：[features/crystalnn.py](features/crystalnn.py)，第 80 行。
+
+```python
+CrystalNNCounter.metadata(self)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `CrystalNNCounter.compute`
+
+源文件：[features/crystalnn.py](features/crystalnn.py)，第 96 行。
+
+```python
+CrystalNNCounter.compute(self, structure: Structure, *, with_sites: bool=True)
+```
+
+Return CrystalNN coordination statistics and optional per-site rows.
+
+## `CrystalNNFingerprints`
+
+源文件：[features/crystalnn.py](features/crystalnn.py)，第 164 行。
+
+```python
+CrystalNNFingerprints
+```
+
+matminer CrystalNN fingerprints, imported lazily.
+
+``preset="cn"`` gives 24 site-level values and 48 structure-level values
+(mean/std/min/max of the site vector); ``preset="ops"`` gives 61 and 122.
+
+## `CrystalNNFingerprints.__init__`
+
+源文件：[features/crystalnn.py](features/crystalnn.py)，第 173 行。
+
+```python
+CrystalNNFingerprints.__init__(self, preset: str='cn')
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `CrystalNNFingerprints.metadata`
+
+源文件：[features/crystalnn.py](features/crystalnn.py)，第 192 行。
+
+```python
+CrystalNNFingerprints.metadata(self)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `CrystalNNFingerprints.site_names`
+
+源文件：[features/crystalnn.py](features/crystalnn.py)，第 203 行。
+
+```python
+CrystalNNFingerprints.site_names(self)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `CrystalNNFingerprints.structure_names`
+
+源文件：[features/crystalnn.py](features/crystalnn.py)，第 207 行。
+
+```python
+CrystalNNFingerprints.structure_names(self)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `CrystalNNFingerprints.compute`
+
+源文件：[features/crystalnn.py](features/crystalnn.py)，第 210 行。
+
+```python
+CrystalNNFingerprints.compute(self, structure: Structure, *, with_sites: bool=True)
+```
+
+Return structure-level statistics and optional per-site rows.
+
+## `GeometryFeatures`
+
+源文件：[features/geometry.py](features/geometry.py)，第 21 行。
+
+```python
+GeometryFeatures
+```
+
+Wrap ``StructureFeatureExtractor`` behind one ``compute`` call.
+
+## `GeometryFeatures.__init__`
+
+源文件：[features/geometry.py](features/geometry.py)，第 26 行。
+
+```python
+GeometryFeatures.__init__(self, options: dict[str, Any] | None=None)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `GeometryFeatures.metadata`
+
+源文件：[features/geometry.py](features/geometry.py)，第 33 行。
+
+```python
+GeometryFeatures.metadata(self)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `GeometryFeatures.compute`
+
+源文件：[features/geometry.py](features/geometry.py)，第 40 行。
+
+```python
+GeometryFeatures.compute(self, structure: Structure, *, with_sites: bool=True)
+```
+
+Return ``(structure_values, site_rows)`` for one structure.
+
+Both tables come from a single ``extract`` call so the neighbour search
+is not repeated.  Keys are *not* prefixed here; :mod:`api` adds prefixes.
+
+## `MLIPFeatures`
+
+源文件：[features/mlip.py](features/mlip.py)，第 25 行。
+
+```python
+MLIPFeatures
+```
+
+MACE / M3GNet embedding of one structure.
+
+Args:
+    model_path: Path of the MLIP model directory or file.
+    encoder: ``"mace"`` or ``"m3gnet"``.
+    device: Torch device for MACE; ignored by M3GNet.
+    head: Optional MACE head name.
+    layers: MACE interaction layers to use: ``1`` (first), ``2`` (second),
+        ``"all"`` (every layer, the default), or a sequence of layer
+        numbers. M3GNet has a single readout and only accepts ``"all"``.
+    aggregate: ``"atom_mean"`` pools every atom into one vector;
+        ``"element_mean"`` pools per chemical element and emits one block
+        per element (``mlip.Na.d000``, ``mlip.Cl.d000``, ...). M3GNet only
+        supports ``"atom_mean"``.
+
+## `MLIPFeatures.__init__`
+
+源文件：[features/mlip.py](features/mlip.py)，第 44 行。
+
+```python
+MLIPFeatures.__init__(self, model_path: str, encoder: str='mace', device: str='cpu', head: str | None=None, layers: str | int | tuple[int, ...] | list[int]='all', aggregate: str='atom_mean')
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `MLIPFeatures.metadata`
+
+源文件：[features/mlip.py](features/mlip.py)，第 87 行。
+
+```python
+MLIPFeatures.metadata(self)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `MLIPFeatures.descriptors`
+
+源文件：[features/mlip.py](features/mlip.py)，第 101 行。
+
+```python
+MLIPFeatures.descriptors(self)
+```
+
+The loaded :class:`MACEAtomicDescriptors` (MACE only).
+
+## `MLIPFeatures.names`
+
+源文件：[features/mlip.py](features/mlip.py)，第 109 行。
+
+```python
+MLIPFeatures.names(self)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `MLIPFeatures.compute`
+
+源文件：[features/mlip.py](features/mlip.py)，第 120 行。
+
+```python
+MLIPFeatures.compute(self, structure: Structure, *, with_sites: bool=False)
+```
+
+Return the embedding as ``{"d000": ...}`` or ``{"Na.d000": ...}``.
+
+## `FeatureSet`
+
+源文件：[features/registry.py](features/registry.py)，第 35 行。
+
+```python
+FeatureSet
+```
+
+One selectable group of feature columns.
+
+Attributes:
+    name: Public name used in ``sets=[...]``.
+    prefix: Prefix every column produced by the set carries, e.g. ``geom.``.
+    levels: Levels the set can fill: ``structure``, ``site`` or both.
+    requires: Importable module names that must be installed.
+    description: One-line human description.
+
+## `check_dependencies`
+
+源文件：[features/registry.py](features/registry.py)，第 91 行。
+
+```python
+check_dependencies(feature_set: FeatureSet)
+```
+
+Raise :class:`ImportError` when a required package is missing.
+
+The message names the interpreter so a wrong conda environment is easy to
+spot, which is the most common cause on this machine.
+
+## `resolve_sets`
+
+源文件：[features/registry.py](features/registry.py)，第 107 行。
+
+```python
+resolve_sets(sets: str | Sequence[str] | None)
+```
+
+Return the requested feature sets, in request order, without duplicates.
+
+## `resolve_level`
+
+源文件：[features/registry.py](features/registry.py)，第 134 行。
+
+```python
+resolve_level(level: str)
+```
+
+Map ``level`` onto the tables that must be filled.
+
+## `select_names`
+
+源文件：[features/registry.py](features/registry.py)，第 144 行。
+
+```python
+select_names(names: Iterable[str], include: Sequence[str] | None=None, exclude: Sequence[str] | None=None)
+```
+
+Filter full column names with glob patterns.
+
+Patterns are matched against the prefixed name, e.g. ``"cnn.cn_*"``.
+``include`` keeps matches only; ``exclude`` then drops matches.
+
+## `available_sets`
+
+源文件：[features/registry.py](features/registry.py)，第 171 行。
+
+```python
+available_sets()
+```
+
+Describe every registered set, including whether it can run right now.
 
 ## `sanitize_for_json`
 
@@ -336,7 +819,7 @@ StructureFeatureExtractor.extract(self, structure: Structure, supercell_matrix=N
 
 ## `StructureFeatureExtractor.extract_features`
 
-源文件：[Get_structfeatures_all.py](Get_structfeatures_all.py)，第 290 行。
+源文件：[Get_structfeatures_all.py](Get_structfeatures_all.py)，第 295 行。
 
 ```python
 StructureFeatureExtractor.extract_features(cls, structure: Structure, **kwargs)
@@ -450,6 +933,286 @@ DeduplicationTests
 
 ```python
 DeduplicationTests.test_compatibility_and_order(self)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `rocksalt_nacl`
+
+源文件：[test_features.py](test_features.py)，第 22 行。
+
+```python
+rocksalt_nacl()
+```
+
+Eight-site NaCl with oxidation states so CrystalNN finds six neighbours.
+
+## `layered_licoo2`
+
+源文件：[test_features.py](test_features.py)，第 33 行。
+
+```python
+layered_licoo2()
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `FeatureExtractionTests`
+
+源文件：[test_features.py](test_features.py)，第 42 行。
+
+```python
+FeatureExtractionTests
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `FeatureExtractionTests.setUpClass`
+
+源文件：[test_features.py](test_features.py)，第 44 行。
+
+```python
+FeatureExtractionTests.setUpClass(cls)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `FeatureExtractionTests.test_top_level_export_is_the_same_function`
+
+源文件：[test_features.py](test_features.py)，第 48 行。
+
+```python
+FeatureExtractionTests.test_top_level_export_is_the_same_function(self)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `FeatureExtractionTests.test_default_sets_are_geometry_only`
+
+源文件：[test_features.py](test_features.py)，第 51 行。
+
+```python
+FeatureExtractionTests.test_default_sets_are_geometry_only(self)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `FeatureExtractionTests.test_crystalnn_counts_six_neighbours_for_rocksalt`
+
+源文件：[test_features.py](test_features.py)，第 60 行。
+
+```python
+FeatureExtractionTests.test_crystalnn_counts_six_neighbours_for_rocksalt(self)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `FeatureExtractionTests.test_site_level_rows`
+
+源文件：[test_features.py](test_features.py)，第 68 行。
+
+```python
+FeatureExtractionTests.test_site_level_rows(self)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `FeatureExtractionTests.test_structure_only_level_has_no_sites`
+
+源文件：[test_features.py](test_features.py)，第 78 行。
+
+```python
+FeatureExtractionTests.test_structure_only_level_has_no_sites(self)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `FeatureExtractionTests.test_include_and_exclude`
+
+源文件：[test_features.py](test_features.py)，第 82 行。
+
+```python
+FeatureExtractionTests.test_include_and_exclude(self)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `FeatureExtractionTests.test_non_sodium_structure_does_not_raise`
+
+源文件：[test_features.py](test_features.py)，第 96 行。
+
+```python
+FeatureExtractionTests.test_non_sodium_structure_does_not_raise(self)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `FeatureExtractionTests.test_metadata_records_structure_and_sets`
+
+源文件：[test_features.py](test_features.py)，第 100 行。
+
+```python
+FeatureExtractionTests.test_metadata_records_structure_and_sets(self)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `FeatureExtractionTests.test_load_structure_accepts_poscar`
+
+源文件：[test_features.py](test_features.py)，第 107 行。
+
+```python
+FeatureExtractionTests.test_load_structure_accepts_poscar(self)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `FeatureExtractionTests.test_batch_isolates_a_bad_entry`
+
+源文件：[test_features.py](test_features.py)，第 122 行。
+
+```python
+FeatureExtractionTests.test_batch_isolates_a_bad_entry(self)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `FeatureExtractionTests.test_batch_returns_site_frame`
+
+源文件：[test_features.py](test_features.py)，第 128 行。
+
+```python
+FeatureExtractionTests.test_batch_returns_site_frame(self)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `FeatureExtractionTests.test_mlip_requires_a_model_path`
+
+源文件：[test_features.py](test_features.py)，第 136 行。
+
+```python
+FeatureExtractionTests.test_mlip_requires_a_model_path(self)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `FeatureExtractionTests.test_unavailable_optional_set_raises_import_error`
+
+源文件：[test_features.py](test_features.py)，第 140 行。
+
+```python
+FeatureExtractionTests.test_unavailable_optional_set_raises_import_error(self)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `FeatureExtractionTests.test_available_sets_reports_prefix_and_availability`
+
+源文件：[test_features.py](test_features.py)，第 146 行。
+
+```python
+FeatureExtractionTests.test_available_sets_reports_prefix_and_availability(self)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `MaceDescriptorTests`
+
+源文件：[test_features.py](test_features.py)，第 158 行。
+
+```python
+MaceDescriptorTests
+```
+
+Per-layer and per-element MACE descriptor selection (real checkpoint).
+
+## `MaceDescriptorTests.setUpClass`
+
+源文件：[test_features.py](test_features.py)，第 162 行。
+
+```python
+MaceDescriptorTests.setUpClass(cls)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `MaceDescriptorTests.test_first_layer_only`
+
+源文件：[test_features.py](test_features.py)，第 183 行。
+
+```python
+MaceDescriptorTests.test_first_layer_only(self)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `MaceDescriptorTests.test_second_layer_only_differs_from_first`
+
+源文件：[test_features.py](test_features.py)，第 189 行。
+
+```python
+MaceDescriptorTests.test_second_layer_only_differs_from_first(self)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `MaceDescriptorTests.test_all_layers_concatenate`
+
+源文件：[test_features.py](test_features.py)，第 197 行。
+
+```python
+MaceDescriptorTests.test_all_layers_concatenate(self)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `MaceDescriptorTests.test_element_mean_emits_one_block_per_element`
+
+源文件：[test_features.py](test_features.py)，第 202 行。
+
+```python
+MaceDescriptorTests.test_element_mean_emits_one_block_per_element(self)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `M3GNetEncoderTests`
+
+源文件：[test_features.py](test_features.py)，第 217 行。
+
+```python
+M3GNetEncoderTests
+```
+
+The M3GNet checkpoint path, loaded once per class.
+
+## `M3GNetEncoderTests.setUpClass`
+
+源文件：[test_features.py](test_features.py)，第 221 行。
+
+```python
+M3GNetEncoderTests.setUpClass(cls)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `M3GNetEncoderTests.test_structure_vector_has_64_named_columns`
+
+源文件：[test_features.py](test_features.py)，第 235 行。
+
+```python
+M3GNetEncoderTests.test_structure_vector_has_64_named_columns(self)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `M3GNetEncoderTests.test_mace_only_options_are_rejected`
+
+源文件：[test_features.py](test_features.py)，第 243 行。
+
+```python
+M3GNetEncoderTests.test_mace_only_options_are_rejected(self)
 ```
 
 原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。

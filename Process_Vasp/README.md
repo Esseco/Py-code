@@ -19,6 +19,7 @@ VASP 输入生成、计算结果读取和可恢复的 atomate2 工作流。默�
 | 结果/状态读取 | read_vasp_output / read_vasp_status | 计算目录 | 结果或状态 dict | [read_results.py](examples/read_results.py) |
 | Fe/Mn 磁矩诊断 | check_dft_magnetic_moments / check_layered_oxide_moments | OUTCAR 或局域磁矩、明确的层状体系标识 | 只读诊断 dict，μB | [磁矩说明](docs/MAGNETIC_CHECK.md) |
 | 原始逐原子磁矩 | read_dft_magnetic_data | OUTCAR、对应结构 | 所有元素的原子索引/磁矩，μB；不筛选 | [磁矩说明](docs/MAGNETIC_CHECK.md) |
+| 元素磁矩聚合 | read_element_moments | 计算目录的 OUTCAR（默认最后一步） | 元素 → count/sum/mean/极值（SOC 给模长），μB | [磁矩说明](docs/MAGNETIC_CHECK.md) |
 | INCAR/文件处理 | set_incar_tags / update_incar / copy_vasp_files | 输入文件/目录 | 修改或复制文件 | [API 参数索引](API.md) |
 
 各功能可单独调用，不要求经过仓库统一 CLI。模板顶部集中放路径和参数，导入不会执行。先修改模板，再从仓库根目录运行，例如：

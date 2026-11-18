@@ -31,5 +31,8 @@
   "run_mlip_neb": "(structure, parent_structure, output_dir, *, model='mace-mh1', calculator=None, mobile_ion='Na', mode='random', random_num=3, indices=None, num_paths_per_ion=1, max_distance=5.0, match_tol=0.6, overlap_tol=0.5, seed=0, intermediate_images=3, relax_endpoints=True, endpoint_fmax=0.1, endpoint_steps=2000, endpoint_optimizer='LBFGS', neb_fmax=0.1, neb_steps=500, cineb_fmax=0.05, cineb_steps=500, endpoint_pairs=None)",
   "compare_m3gnet_features": "(structure_a, structure_b, model_path)",
   "DXR_MSD": "(trajectory, output_csv=None, *, species=None, frame_interval_fs=None, skip_frames=0, max_lag_ratio=0.7, fit_start_ps=1.0, fit_end_ps=None, temperature_K=None, volume_A3=None, ion_charge=1, drift_reference='framework', output_json=None, overwrite=False)",
-  "MP_MSD": "(trajectory, output_csv, *, species=None, frame_interval_fs=None, skip_frames=0, number_of_segments=1, unwrap=False, drift_reference=None, overwrite=False, min_obs=30)"
+  "MP_MSD": "(trajectory, output_csv, *, species=None, frame_interval_fs=None, skip_frames=0, number_of_segments=1, unwrap=False, drift_reference=None, overwrite=False, min_obs=30)",
+  "WeightedKMeansPlusPlusSampler": "(random_state=None, *, chunk_size=512)",
+  "WeightedFarthestFirstSampler": "(*, chunk_size=512)",
+  "WeightedNMSSampler": "(radius, *, chunk_size=512)"
 }

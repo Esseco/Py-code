@@ -1,4 +1,4 @@
-"""Legacy scalar magnetization reader; not a vector/SOC moment interface."""
+"""Scalar magnetization readers: legacy tuple API and per-element aggregation."""
 import re
 from pathlib import Path as p
 from monty.io import zopen
@@ -62,5 +62,76 @@ def read_magnetic_moments_outcar(init_dir:p) -> tuple:
         return 0
         
     return elements, magnetic_moments, total_magnetic_moment
+
+
+def read_element_moments(directory, *, structure=None, parameters=None) -> dict:
+    """Aggregate the final local magnetic moments per chemical element.
+
+    Only the last magnetization table (final ionic step) is read, through
+    :func:`Process_Vasp.results.magnetic_check.read_dft_magnetic_data`, so
+    compressed OUTCAR and SOC handling stay in one place. Units are mu_B.
+
+    Returns ``available``, ``elements`` (symbol -> ``count``/``sum``/``mean``
+    plus ``min``/``max`` for collinear runs or ``norm_mean`` for non-collinear
+    ones), ``moments`` in atom order, ``noncollinear`` and ``total_local_moment``.
+    Missing or invalid data gives ``available=False`` with the reader's error
+    instead of zeros. Read-only: no file writes and no VASP execution.
+    """
+    from .magnetic_check import read_dft_magnetic_data
+
+    raw = read_dft_magnetic_data(directory, structure=structure, parameters=parameters)
+    report = {
+        "schema": "vasp-element-moments-v1",
+        "unit": "mu_B",
+        "available": raw.get("status") == "available",
+        "noncollinear": bool(raw.get("noncollinear", False)),
+        "source": raw.get("source", "OUTCAR_final_local_projection"),
+        "elements": {},
+    }
+    if not report["available"]:
+        report["status"] = raw.get("status", "unavailable")
+        report["error"] = raw.get("read_error")
+        return report
+
+    sites = raw.get("sites") or []
+    grouped = {}
+    for site in sites:
+        grouped.setdefault(site["element"], []).append(site["moment"])
+
+    for element, values in grouped.items():
+        block = {"count": len(values), "sum": _sum(values), "mean": _mean(values),
+                 "moments": list(values)}
+        if report["noncollinear"]:
+            block["norm_mean"] = _mean([_norm(value) for value in values])
+        else:
+            block["min"], block["max"] = min(values), max(values)
+        report["elements"][element] = block
+
+    report.update(
+        atom_elements=list(raw.get("elements") or []),
+        n_atoms=len(sites),
+        total_local_moment=raw.get("total_local_moment"),
+    )
+    return report
+
+
+def _sum(values):
+    if values and isinstance(values[0], (list, tuple)):
+        return [sum(component) for component in zip(*values)]
+    return sum(values)
+
+
+def _mean(values):
+    if not values:
+        return None
+    if isinstance(values[0], (list, tuple)):
+        return [sum(component) / len(values) for component in zip(*values)]
+    return sum(values) / len(values)
+
+
+def _norm(value):
+    if isinstance(value, (list, tuple)):
+        return sum(component * component for component in value) ** 0.5
+    return abs(value)
 
 

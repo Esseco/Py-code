@@ -1,5 +1,7 @@
 """Utilities for editing and copying VASP input files."""
 
+from __future__ import annotations
+
 from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 import shutil

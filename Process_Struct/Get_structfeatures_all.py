@@ -171,9 +171,14 @@ class StructureFeatureExtractor:
             if s.specie.symbol in self.tm_set
         ]
 
+        # Absent Na or O makes the Na/O ratio undefined; NaN keeps the column
+        # numeric so non-layered-oxide structures no longer raise KeyError.
+        na = structure.composition.get("Na", 0.0)
+        oxygen = structure.composition.get("O", 0.0)
         na_ratio = (
-            2 * int(structure.composition["Na"])
-            / int(structure.composition["O"])
+            2 * int(na) / int(oxygen)
+            if na and oxygen
+            else float("nan")
         )
 
         res = {

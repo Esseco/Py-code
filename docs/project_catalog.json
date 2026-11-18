@@ -123,10 +123,11 @@
       {
         "file": "Process_Vasp/inputs/excitation.py",
         "name": "generate_excited_input",
-        "line": 16,
+        "line": 18,
         "signature": "generate_excited_input(ground_dir: str | Path, target_dir: str | Path, *, spin: str | None='auto', valence_band: int | None=None, conduction_band: int | None=None)",
         "doc": "Prepare excitation inputs with spin='auto', 'up', 'down' or 'both'.\n\nAuto (also None) chooses the smallest same-spin band-edge gap; ties choose\nup. Explicit band indices do not change this channel-selection rule.\nBoth creates independent up/ and down/ calculations below target_dir and\nreturns their reports under those keys. It does not excite both channels\nin one calculation. Both requires ISPIN=2. All previous restrictions apply.",
         "imports": [
+          "__future__",
           "json",
           "monty",
           "numpy",
@@ -151,10 +152,11 @@
       {
         "file": "Process_Vasp/inputs/generation.py",
         "name": "generate_atomate_input",
-        "line": 16,
+        "line": 18,
         "signature": "generate_atomate_input(directory: str | Path, structure: str | Path, calculation: Literal['relax', 'static', 'dos', 'band']='relax', incar_settings: dict[str, dict] | None=None, kpoints_settings: dict[str, dict] | None=None, job_name: str | None=None, resume_from: dict[str, str] | None=None, export_plot_data: bool=False)",
         "doc": "Create a directly submittable atomate2 workflow from a .vasp or .cif.\n\nSettings are keyed by stage: ``relax``, ``static``, ``dos`` or ``band``.\nDOS and band workflows automatically run relax -> static -> non-SCF.\nActual VASP inputs are written by atomate2 when each stage starts.\n``static`` runs a single StaticMaker directly, without preceding relaxation.\nStages run in ``runs/relax``, ``runs/static``, ``runs/dos`` or ``runs/band``.\nRepeated executions resume completed stages; retries use new attempt directories.\n``resume_from`` explicitly adopts validated existing output directories by\nstage (paths are evaluated on the execution host); imports are used once.\n``export_plot_data`` writes DOS or band CSV and metadata after the final\nstage succeeds. It can be enabled later without repeating VASP calculations.",
         "imports": [
+          "__future__",
           "json",
           "pathlib",
           "pymatgen",
@@ -165,10 +167,11 @@
       {
         "file": "Process_Vasp/inputs/generation.py",
         "name": "convert_dos_to_unix",
-        "line": 102,
+        "line": 104,
         "signature": "convert_dos_to_unix(file_path: Path)",
         "doc": "Convert CRLF line endings to LF in one file.",
         "imports": [
+          "__future__",
           "json",
           "pathlib",
           "pymatgen",
@@ -179,10 +182,11 @@
       {
         "file": "Process_Vasp/inputs/generation.py",
         "name": "convert_files_in_directory",
-        "line": 112,
+        "line": 114,
         "signature": "convert_files_in_directory(directory_path: str | Path)",
         "doc": "Recursively convert files below a directory to Unix line endings.",
         "imports": [
+          "__future__",
           "json",
           "pathlib",
           "pymatgen",
@@ -193,10 +197,11 @@
       {
         "file": "Process_Vasp/inputs/generation.py",
         "name": "generate_vasp_input",
-        "line": 119,
+        "line": 121,
         "signature": "generate_vasp_input(struct: Structure, tar_dir: str | Path, incar_set: dict, potcar_set: bool, lsfname: str, kpoints_set: Kpoints | None=None)",
         "doc": "Generate INCAR, KPOINTS, optional POTCAR, and the LSF script.",
         "imports": [
+          "__future__",
           "json",
           "pathlib",
           "pymatgen",
@@ -207,10 +212,11 @@
       {
         "file": "Process_Vasp/inputs/generation.py",
         "name": "get_INCAR_NUPDOWN",
-        "line": 146,
+        "line": 148,
         "signature": "get_INCAR_NUPDOWN(struct: Structure)",
         "doc": "Estimate NUPDOWN from Na, Fe, and Mn composition.",
         "imports": [
+          "__future__",
           "json",
           "pathlib",
           "pymatgen",
@@ -221,10 +227,11 @@
       {
         "file": "Process_Vasp/inputs/incar.py",
         "name": "set_incar_tags",
-        "line": 17,
+        "line": 19,
         "signature": "set_incar_tags(lines: Iterable[str], updates: Mapping[str, object])",
         "doc": "Replace existing INCAR tags and append tags that are absent.",
         "imports": [
+          "__future__",
           "collections",
           "pathlib",
           "shutil"
@@ -233,10 +240,11 @@
       {
         "file": "Process_Vasp/inputs/incar.py",
         "name": "update_incar",
-        "line": 42,
+        "line": 44,
         "signature": "update_incar(init_dir: str | Path, tar_dir: str | Path, mode: str, spin: int | None=None, nupdown: float | None=None, updates: Mapping[str, object] | None=None)",
         "doc": "Copy and update INCAR in ``Spin`` or ``Correct`` mode.",
         "imports": [
+          "__future__",
           "collections",
           "pathlib",
           "shutil"
@@ -245,10 +253,11 @@
       {
         "file": "Process_Vasp/inputs/incar.py",
         "name": "copy_vasp_files",
-        "line": 76,
+        "line": 78,
         "signature": "copy_vasp_files(init_dir: str | Path, tar_dir: str | Path, files: Mapping[str, str] | Sequence[str] | None=None)",
         "doc": "Copy selected VASP files and return the created paths.\n\n``files`` may be a source-to-destination mapping or a sequence of names.\nMissing files are optional and silently skipped. With the default mapping,\n``vasplsf`` is accepted as a fallback for ``vasp.lsf`` and ``CONTCAR`` is\ncopied as ``POSCAR``. Edit :data:`DEFAULT_VASP_FILES` to extend the defaults.",
         "imports": [
+          "__future__",
           "collections",
           "pathlib",
           "shutil"
@@ -257,10 +266,11 @@
       {
         "file": "Process_Vasp/inputs/incar.py",
         "name": "copy_file",
-        "line": 111,
+        "line": 113,
         "signature": "copy_file(init_dir: str | Path, tar_dir: str | Path)",
         "doc": "Backward-compatible copy helper using its original file selection.",
         "imports": [
+          "__future__",
           "collections",
           "pathlib",
           "shutil"
@@ -281,10 +291,11 @@
       {
         "file": "Process_Vasp/results/dos.py",
         "name": "read_dos",
-        "line": 24,
+        "line": 26,
         "signature": "read_dos(init_dir: str | Path, output_csv: str | Path | None=None, read_ipr: bool=False, include_orbital: bool=False, ipr_sigma: float | None=None, *, include_element: bool=True, include_total: bool=True, shift_fermi: bool=True, mirror_spin_down: bool=False)",
         "doc": "Read DOS and calculation metadata; optionally export the numeric table.\n\nArgs:\n    init_dir: Directory containing ``vasprun.xml`` or ``vasprun.xml.gz``.\n        Compressed INCAR and PROCAR are also read directly.\n    output_csv: Destination CSV path. None means no file is written.\n    read_ipr: Whether to add Gaussian-broadened IPR columns from ``PROCAR``.\n    include_orbital: Whether to include the s/p/d/f PDOS of every element.\n    ipr_sigma: Gaussian broadening width in eV for the IPR. Defaults to the\n        ``SIGMA`` value in ``vasprun.xml``.\n    include_element: Include element-projected DOS (enabled by default).\n    include_total: Include total DOS.\n    shift_fermi: Use E - E_F instead of absolute energy (eV).\n    mirror_spin_down: Negate down-spin DOS for mirrored plots; IPR is unchanged.\n\nReturns:\n    Dict with ``NEDOS``, ``kpoint_density`` (KPPRA = full mesh size times\n    atom count), ``kpoint_mesh``, ``nkpoints``, ``KSPACING``, ``efermi``,\n    ``path``, ``composition``, and ``df``. Density is None when no regular\n    mesh is available (e.g. explicit or line-mode k-points). ``NEDOS`` is\n    read from INCAR when present, otherwise from the recorded XML input.\n    ``df`` contains only numeric plotting columns; export with\n    ``result['df'].to_csv('dos.csv', index=False)``.",
         "imports": [
+          "__future__",
           "monty",
           "numpy",
           "pandas",
@@ -296,10 +307,11 @@
       {
         "file": "Process_Vasp/results/dos.py",
         "name": "read_ipr_data",
-        "line": 219,
+        "line": 221,
         "signature": "read_ipr_data(init_dir: str | Path, output_csv: str | Path | None=None, efermi: float | None=None)",
         "doc": "Read atom-projected inverse participation ratios from ``PROCAR``.\n\nArgs:\n    init_dir: Directory containing ``PROCAR`` and, when ``efermi`` is omitted,\n        ``vasprun.xml``.\n    output_csv: Destination CSV path. Defaults to ``ipr.csv`` in the input directory.\n    efermi: Fermi energy used as the energy zero. When omitted, it is read from\n        ``vasprun.xml``.\n\nReturns:\n    A DataFrame containing energy, spin, k-point, band, and IPR columns.",
         "imports": [
+          "__future__",
           "monty",
           "numpy",
           "pandas",
@@ -311,10 +323,11 @@
       {
         "file": "Process_Vasp/results/dos.py",
         "name": "read_ipr",
-        "line": 280,
+        "line": 282,
         "signature": "read_ipr(init_dir: str | Path, output_csv: str | Path | None=None, efermi: float | None=None)",
         "doc": "Read IPR data from ``PROCAR``, export it to CSV, and return it.",
         "imports": [
+          "__future__",
           "monty",
           "numpy",
           "pandas",
@@ -376,12 +389,26 @@
         ]
       },
       {
+        "file": "Process_Vasp/results/magnetism.py",
+        "name": "read_element_moments",
+        "line": 67,
+        "signature": "read_element_moments(directory, *, structure=None, parameters=None)",
+        "doc": "Aggregate the final local magnetic moments per chemical element.\n\nOnly the last magnetization table (final ionic step) is read, through\n:func:`Process_Vasp.results.magnetic_check.read_dft_magnetic_data`, so\ncompressed OUTCAR and SOC handling stay in one place. Units are mu_B.\n\nReturns ``available``, ``elements`` (symbol -> ``count``/``sum``/``mean``\nplus ``min``/``max`` for collinear runs or ``norm_mean`` for non-collinear\nones), ``moments`` in atom order, ``noncollinear`` and ``total_local_moment``.\nMissing or invalid data gives ``available=False`` with the reader's error\ninstead of zeros. Read-only: no file writes and no VASP execution.",
+        "imports": [
+          "monty",
+          "pathlib",
+          "pymatgen",
+          "re"
+        ]
+      },
+      {
         "file": "Process_Vasp/results/reader.py",
         "name": "read_vasp_output",
-        "line": 82,
+        "line": 84,
         "signature": "read_vasp_output(init_dir: str | Path, last_step: bool=True, efsm: str='e', read_dos: bool=False)",
         "doc": "Read selected results from one VASP calculation directory.\n\nArgs:\n    init_dir: Directory containing ``vasprun.xml`` or ``vasprun.xml.gz``.\n    last_step: Read only the final ionic step when true; otherwise read all steps.\n    efsm: Fields to read: ``e`` energy, ``f`` forces, ``s`` stress, and ``m`` magnetization.\n    read_dos: Read band gap, CBM, VBM, and direct-gap information.\n\nReturns:\n    A dictionary containing path, composition, atom count, and requested results.",
         "imports": [
+          "__future__",
           "pathlib",
           "pymatgen",
           "typing"
@@ -390,10 +417,11 @@
       {
         "file": "Process_Vasp/results/status.py",
         "name": "read_vasp_status",
-        "line": 44,
+        "line": 46,
         "signature": "read_vasp_status(init_dir: str | Path)",
         "doc": "Read calculation status without modifying VASP input files.\n\nArgs:\n    init_dir: VASP calculation directory.\n\nReturns:\n    Completion, convergence, ionic-step, and detected-error information.",
         "imports": [
+          "__future__",
           "custodian",
           "monty",
           "pathlib",
@@ -404,11 +432,12 @@
       {
         "file": "Process_Vasp/structures/structure.py",
         "name": "deduplicate",
-        "line": 14,
+        "line": 16,
         "signature": "deduplicate(struc_lst: list)",
         "doc": "Load the optional structure toolkit only when deduplication is used.",
         "imports": [
           "Process_Struct",
+          "__future__",
           "collections",
           "fractions",
           "pandas",
@@ -420,11 +449,12 @@
       {
         "file": "Process_Vasp/structures/structure.py",
         "name": "deduplicate_dict",
-        "line": 21,
+        "line": 23,
         "signature": "deduplicate_dict(struc_dict: dict)",
         "doc": "Deduplicate a structure dictionary with the shared implementation.",
         "imports": [
           "Process_Struct",
+          "__future__",
           "collections",
           "fractions",
           "pandas",
@@ -436,11 +466,12 @@
       {
         "file": "Process_Vasp/structures/structure.py",
         "name": "deduplicate_df",
-        "line": 28,
+        "line": 30,
         "signature": "deduplicate_df(df: pd.DataFrame, n_keep: int, struct_col: str='struct', energy_col: str='energy_mean_per_atom')",
         "doc": "Deduplicate a table with the shared implementation.",
         "imports": [
           "Process_Struct",
+          "__future__",
           "collections",
           "fractions",
           "pandas",
@@ -452,11 +483,12 @@
       {
         "file": "Process_Vasp/structures/structure.py",
         "name": "gen_ESGS_structure",
-        "line": 40,
+        "line": 42,
         "signature": "gen_ESGS_structure(disordered_structure: Structure, nstr: int)",
         "doc": "gen_ESGS_structure 的 Docstring\n\n:param disordered_structure: disorderd struct\n:type disordered_structure: Structure\n:param nstr: generate nstr structs\n:type nstr: int\n:return: struct_lsit\n:rtype: list",
         "imports": [
           "Process_Struct",
+          "__future__",
           "collections",
           "fractions",
           "pandas",
@@ -468,11 +500,12 @@
       {
         "file": "Process_Vasp/structures/structure.py",
         "name": "gen_ESGS_by_content",
-        "line": 103,
+        "line": 105,
         "signature": "gen_ESGS_by_content(struct, contents, count=1, *, species='Li', nstr=None, oxidation_states=None, dedu=True, max_candidates=512)",
         "doc": "Lowest electrostatic-energy orderings for a list of contents.\n\n``struct`` is a full-occupancy reference (Structure or POSCAR/CIF path) and\n``contents`` are integers of ``species`` per cell, for example Li27 with\n``[25, 23, 22]``. Each content yields ``count`` structures taken from\n``gen_ESGS_structure``, whose ranking is the pymatgen Ewald electrostatic\nenergy from low to high, so index 0 is the lowest-energy ordering. Structures\nkeep their oxidation states; POSCAR output is unaffected.\n\n:param struct: full reference structure or its file path\n:param contents: integer counts of ``species``, e.g. ``[25, 23, 22]``\n:param count: structures returned per content\n:param species: element whose content varies, default ``\"Li\"``\n:param nstr: candidate orderings requested per content; default\n    ``max(4 * count, 8)``, doubled until ``count`` distinct ones exist\n:param oxidation_states: element-to-oxidation-state dict used for the\n    electrostatic ranking; guessed from the reference when omitted\n:param dedu: deduplicate candidates with StructureMatcher before truncating\n:param max_candidates: upper bound for the automatic ``nstr`` escalation\n:return: ``{f\"{content}_{full}\": [Structure, ...]}`` in content list order\n:rtype: dict",
         "imports": [
           "Process_Struct",
+          "__future__",
           "collections",
           "fractions",
           "pandas",
@@ -484,11 +517,12 @@
       {
         "file": "Process_Vasp/structures/structure.py",
         "name": "generate_neb_endpoints",
-        "line": 188,
+        "line": 190,
         "signature": "generate_neb_endpoints(fully_intercalated_structure: Structure, deintercalated_structure: Structure, mobile_ion: str, mode: str='random', num_paths_per_ion: int=1, indices: int | Iterable[int] | None=None, random_num: int=3, max_distance: float=5.0, dedu: bool=False, match_tol: float=0.6, overlap_tol: float=0.5, seed: int | None=None)",
         "doc": "Generate NEB endpoints for hops into vacancies of a deintercalated structure.\n\nIn ``select`` mode, ``indices`` are mobile-ion indices in the\ndeintercalated structure. In ``random`` mode, ``random_num`` unique\nion-vacancy pairs are sampled without replacement.",
         "imports": [
           "Process_Struct",
+          "__future__",
           "collections",
           "fractions",
           "pandas",
@@ -500,11 +534,12 @@
       {
         "file": "Process_Vasp/structures/structure.py",
         "name": "check_layer_equal",
-        "line": 349,
+        "line": 351,
         "signature": "check_layer_equal(structure: Structure, element: str='Na', target_layers: int=3, EL_Equal: bool=True)",
         "doc": "check_layer_equal 的 Docstring\n\n:param structure: Struct\n:type structure: Structure\n:param element: consider Element\n:type element: str\n:param target_layers:element layer >= target_layers\n:type target_layers: int\n:param EL_Equal: if Each Layer element Equal(0,1)\n:type EL_Equal: bool\n:return: if equal and len (0,1)\n:rtype: bool",
         "imports": [
           "Process_Struct",
+          "__future__",
           "collections",
           "fractions",
           "pandas",
@@ -516,11 +551,12 @@
       {
         "file": "Process_Vasp/structures/structure.py",
         "name": "build_redox_disordered_structure",
-        "line": 404,
+        "line": 406,
         "signature": "build_redox_disordered_structure(struct, na_num_now)",
         "doc": "",
         "imports": [
           "Process_Struct",
+          "__future__",
           "collections",
           "fractions",
           "pandas",
@@ -532,11 +568,12 @@
       {
         "file": "Process_Vasp/structures/structure.py",
         "name": "remove_oxi",
-        "line": 443,
+        "line": 445,
         "signature": "remove_oxi(struct)",
         "doc": "",
         "imports": [
           "Process_Struct",
+          "__future__",
           "collections",
           "fractions",
           "pandas",
@@ -548,11 +585,12 @@
       {
         "file": "Process_Vasp/structures/structure.py",
         "name": "Na1_to_Nax",
-        "line": 455,
+        "line": 457,
         "signature": "Na1_to_Nax(struct, tar_dir, interval=3, nstr=3, tar_layer=None, equal_num=None, select_num=None, dedu=False, is_Na0=False, phase=None)",
         "doc": "",
         "imports": [
           "Process_Struct",
+          "__future__",
           "collections",
           "fractions",
           "pandas",
@@ -746,6 +784,42 @@
           "pymatgen",
           "tempfile",
           "types",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Vasp/tests/test_element_moments.py",
+        "name": "test_collinear_aggregation_keeps_atom_order",
+        "line": 41,
+        "signature": "test_collinear_aggregation_keeps_atom_order(tmp_path)",
+        "doc": "",
+        "imports": [
+          "Process_Vasp",
+          "pytest",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Vasp/tests/test_element_moments.py",
+        "name": "test_noncollinear_keeps_vectors_and_norm",
+        "line": 57,
+        "signature": "test_noncollinear_keeps_vectors_and_norm(tmp_path)",
+        "doc": "",
+        "imports": [
+          "Process_Vasp",
+          "pytest",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Vasp/tests/test_element_moments.py",
+        "name": "test_missing_data_is_explicit",
+        "line": 66,
+        "signature": "test_missing_data_is_explicit(tmp_path)",
+        "doc": "",
+        "imports": [
+          "Process_Vasp",
+          "pytest",
           "unittest"
         ]
       },
@@ -1547,6 +1621,30 @@
         ]
       },
       {
+        "file": "Process_Struct/examples/feature_sets.py",
+        "name": "rocksalt_nacl",
+        "line": 13,
+        "signature": "rocksalt_nacl()",
+        "doc": "Cubic NaCl with oxidation states, so CrystalNN resolves six neighbours.",
+        "imports": [
+          "Process_Struct",
+          "pathlib",
+          "pymatgen"
+        ]
+      },
+      {
+        "file": "Process_Struct/examples/feature_sets.py",
+        "name": "main",
+        "line": 24,
+        "signature": "main()",
+        "doc": "",
+        "imports": [
+          "Process_Struct",
+          "pathlib",
+          "pymatgen"
+        ]
+      },
+      {
         "file": "Process_Struct/examples/octahedra.py",
         "name": "main",
         "line": 8,
@@ -1623,6 +1721,609 @@
           "Process_Struct",
           "pathlib",
           "pymatgen"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/api.py",
+        "name": "FeatureResult",
+        "line": 56,
+        "signature": "FeatureResult",
+        "doc": "Feature table for one structure.\n\nAttributes:\n    values: Structure-level column name to value, in column order.\n    sites: Site-level rows; each row always has ``site_index`` and\n        ``element`` plus the prefixed site columns of the enabled sets.\n    metadata: Set selection, level, per-set provider metadata, structure\n        summary and interpreter details needed to reproduce the run.\n    warnings: Warning texts emitted while computing; de-duplicated in\n        emission order.",
+        "imports": [
+          "__future__",
+          "dataclasses",
+          "numpy",
+          "pandas",
+          "pathlib",
+          "pymatgen",
+          "typing",
+          "warnings"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/api.py",
+        "name": "FeatureResult.names",
+        "line": 75,
+        "signature": "FeatureResult.names(self)",
+        "doc": "",
+        "imports": [
+          "__future__",
+          "dataclasses",
+          "numpy",
+          "pandas",
+          "pathlib",
+          "pymatgen",
+          "typing",
+          "warnings"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/api.py",
+        "name": "FeatureResult.site_names",
+        "line": 79,
+        "signature": "FeatureResult.site_names(self)",
+        "doc": "",
+        "imports": [
+          "__future__",
+          "dataclasses",
+          "numpy",
+          "pandas",
+          "pathlib",
+          "pymatgen",
+          "typing",
+          "warnings"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/api.py",
+        "name": "FeatureResult.to_vector",
+        "line": 87,
+        "signature": "FeatureResult.to_vector(self)",
+        "doc": "Structure-level values as a float array in ``names`` order.",
+        "imports": [
+          "__future__",
+          "dataclasses",
+          "numpy",
+          "pandas",
+          "pathlib",
+          "pymatgen",
+          "typing",
+          "warnings"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/api.py",
+        "name": "FeatureResult.to_frame",
+        "line": 92,
+        "signature": "FeatureResult.to_frame(self)",
+        "doc": "One-row DataFrame with structure-level columns.",
+        "imports": [
+          "__future__",
+          "dataclasses",
+          "numpy",
+          "pandas",
+          "pathlib",
+          "pymatgen",
+          "typing",
+          "warnings"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/api.py",
+        "name": "FeatureResult.to_site_frame",
+        "line": 99,
+        "signature": "FeatureResult.to_site_frame(self)",
+        "doc": "Site-level rows as a DataFrame; no rows give an empty frame.",
+        "imports": [
+          "__future__",
+          "dataclasses",
+          "numpy",
+          "pandas",
+          "pathlib",
+          "pymatgen",
+          "typing",
+          "warnings"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/api.py",
+        "name": "FeatureExtractor",
+        "line": 107,
+        "signature": "FeatureExtractor",
+        "doc": "Reusable extractor; expensive models are loaded once at construction.\n\nArgs:\n    sets: Feature sets to compute; ``None`` means ``(\"geometry\",)``.\n    level: ``\"structure\"``, ``\"site\"`` or ``\"both\"``.\n    encoder: MLIP encoder, ``\"mace\"`` or ``\"m3gnet\"``.\n    model_path: MLIP model path; required when ``sets`` contains ``\"mlip\"``.\n    device: Torch device for MACE.\n    head: Optional MACE head.\n    mlip_layers: MACE interaction layers, ``1``, ``2``, ``\"all\"`` or a list.\n    mlip_aggregate: ``\"atom_mean\"`` (one vector) or ``\"element_mean\"``\n        (one block per element, columns like ``mlip.Na.d000``).\n    geometry_options: Keyword arguments for ``StructureFeatureExtractor``.\n    cnn_options: Keyword arguments forwarded to pymatgen ``CrystalNN``.\n    cnn_site_filter: ``\"all\"`` or ``\"tm\"`` for the native CN layer.\n    cnn_fp_preset: matminer fingerprint preset, ``\"cn\"`` or ``\"ops\"``.\n    include: Glob patterns kept, matched against full column names.\n    exclude: Glob patterns dropped after ``include``.",
+        "imports": [
+          "__future__",
+          "dataclasses",
+          "numpy",
+          "pandas",
+          "pathlib",
+          "pymatgen",
+          "typing",
+          "warnings"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/api.py",
+        "name": "FeatureExtractor.__init__",
+        "line": 128,
+        "signature": "FeatureExtractor.__init__(self, sets: str | Sequence[str] | None=None, *, level: str='structure', encoder: str='mace', model_path: str | None=None, device: str='cpu', head: str | None=None, mlip_layers: str | int | Sequence[int]='all', mlip_aggregate: str='atom_mean', geometry_options: dict[str, Any] | None=None, cnn_options: dict[str, Any] | None=None, cnn_site_filter: str='all', cnn_fp_preset: str='cn', include: Sequence[str] | None=None, exclude: Sequence[str] | None=None)",
+        "doc": "",
+        "imports": [
+          "__future__",
+          "dataclasses",
+          "numpy",
+          "pandas",
+          "pathlib",
+          "pymatgen",
+          "typing",
+          "warnings"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/api.py",
+        "name": "FeatureExtractor.metadata",
+        "line": 186,
+        "signature": "FeatureExtractor.metadata(self)",
+        "doc": "",
+        "imports": [
+          "__future__",
+          "dataclasses",
+          "numpy",
+          "pandas",
+          "pathlib",
+          "pymatgen",
+          "typing",
+          "warnings"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/api.py",
+        "name": "FeatureExtractor.extract",
+        "line": 203,
+        "signature": "FeatureExtractor.extract(self, structure_or_path: Any)",
+        "doc": "Compute the selected features for one structure.",
+        "imports": [
+          "__future__",
+          "dataclasses",
+          "numpy",
+          "pandas",
+          "pathlib",
+          "pymatgen",
+          "typing",
+          "warnings"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/api.py",
+        "name": "load_structure",
+        "line": 347,
+        "signature": "load_structure(structure_or_path: Any)",
+        "doc": "Return a pymatgen ``Structure`` from a Structure, ASE Atoms or path.",
+        "imports": [
+          "__future__",
+          "dataclasses",
+          "numpy",
+          "pandas",
+          "pathlib",
+          "pymatgen",
+          "typing",
+          "warnings"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/api.py",
+        "name": "extract_features",
+        "line": 377,
+        "signature": "extract_features(structure_or_path: Any, **kwargs: Any)",
+        "doc": "One-shot convenience wrapper; rebuilds the extractor on every call.\n\nUse :class:`FeatureExtractor` for batches so models are loaded once.",
+        "imports": [
+          "__future__",
+          "dataclasses",
+          "numpy",
+          "pandas",
+          "pathlib",
+          "pymatgen",
+          "typing",
+          "warnings"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/api.py",
+        "name": "extract_many",
+        "line": 386,
+        "signature": "extract_many(structures: Iterable[Any], *, return_sites: bool=False, **kwargs: Any)",
+        "doc": "Extract features for many structures; one bad structure does not abort.\n\nReturns a DataFrame with ``status``, ``error`` and ``formula`` columns in\naddition to the feature columns.  With ``return_sites=True`` returns\n``(structure_frame, site_frame)``, where the site frame carries a\n``structure_index`` column.",
+        "imports": [
+          "__future__",
+          "dataclasses",
+          "numpy",
+          "pandas",
+          "pathlib",
+          "pymatgen",
+          "typing",
+          "warnings"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/crystalnn.py",
+        "name": "CrystalNNCounter",
+        "line": 52,
+        "signature": "CrystalNNCounter",
+        "doc": "Coordination numbers and their distribution from pymatgen ``CrystalNN``.\n\nArgs:\n    options: Keyword arguments forwarded to ``CrystalNN``; empty by default,\n        which keeps pymatgen's own defaults (no oxidation-state guessing).\n    site_filter: ``\"all\"`` for every site or ``\"tm\"`` for transition-metal\n        sites only.\n    tm_elements: Elements treated as transition metals when\n        ``site_filter=\"tm\"``.",
+        "imports": [
+          "__future__",
+          "matminer",
+          "numpy",
+          "pymatgen",
+          "re",
+          "typing",
+          "warnings"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/crystalnn.py",
+        "name": "CrystalNNCounter.__init__",
+        "line": 66,
+        "signature": "CrystalNNCounter.__init__(self, options: dict[str, Any] | None=None, site_filter: str='all', tm_elements: Sequence[str] | None=None)",
+        "doc": "",
+        "imports": [
+          "__future__",
+          "matminer",
+          "numpy",
+          "pymatgen",
+          "re",
+          "typing",
+          "warnings"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/crystalnn.py",
+        "name": "CrystalNNCounter.metadata",
+        "line": 80,
+        "signature": "CrystalNNCounter.metadata(self)",
+        "doc": "",
+        "imports": [
+          "__future__",
+          "matminer",
+          "numpy",
+          "pymatgen",
+          "re",
+          "typing",
+          "warnings"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/crystalnn.py",
+        "name": "CrystalNNCounter.compute",
+        "line": 96,
+        "signature": "CrystalNNCounter.compute(self, structure: Structure, *, with_sites: bool=True)",
+        "doc": "Return CrystalNN coordination statistics and optional per-site rows.",
+        "imports": [
+          "__future__",
+          "matminer",
+          "numpy",
+          "pymatgen",
+          "re",
+          "typing",
+          "warnings"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/crystalnn.py",
+        "name": "CrystalNNFingerprints",
+        "line": 164,
+        "signature": "CrystalNNFingerprints",
+        "doc": "matminer CrystalNN fingerprints, imported lazily.\n\n``preset=\"cn\"`` gives 24 site-level values and 48 structure-level values\n(mean/std/min/max of the site vector); ``preset=\"ops\"`` gives 61 and 122.",
+        "imports": [
+          "__future__",
+          "matminer",
+          "numpy",
+          "pymatgen",
+          "re",
+          "typing",
+          "warnings"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/crystalnn.py",
+        "name": "CrystalNNFingerprints.__init__",
+        "line": 173,
+        "signature": "CrystalNNFingerprints.__init__(self, preset: str='cn')",
+        "doc": "",
+        "imports": [
+          "__future__",
+          "matminer",
+          "numpy",
+          "pymatgen",
+          "re",
+          "typing",
+          "warnings"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/crystalnn.py",
+        "name": "CrystalNNFingerprints.metadata",
+        "line": 192,
+        "signature": "CrystalNNFingerprints.metadata(self)",
+        "doc": "",
+        "imports": [
+          "__future__",
+          "matminer",
+          "numpy",
+          "pymatgen",
+          "re",
+          "typing",
+          "warnings"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/crystalnn.py",
+        "name": "CrystalNNFingerprints.site_names",
+        "line": 203,
+        "signature": "CrystalNNFingerprints.site_names(self)",
+        "doc": "",
+        "imports": [
+          "__future__",
+          "matminer",
+          "numpy",
+          "pymatgen",
+          "re",
+          "typing",
+          "warnings"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/crystalnn.py",
+        "name": "CrystalNNFingerprints.structure_names",
+        "line": 207,
+        "signature": "CrystalNNFingerprints.structure_names(self)",
+        "doc": "",
+        "imports": [
+          "__future__",
+          "matminer",
+          "numpy",
+          "pymatgen",
+          "re",
+          "typing",
+          "warnings"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/crystalnn.py",
+        "name": "CrystalNNFingerprints.compute",
+        "line": 210,
+        "signature": "CrystalNNFingerprints.compute(self, structure: Structure, *, with_sites: bool=True)",
+        "doc": "Return structure-level statistics and optional per-site rows.",
+        "imports": [
+          "__future__",
+          "matminer",
+          "numpy",
+          "pymatgen",
+          "re",
+          "typing",
+          "warnings"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/geometry.py",
+        "name": "GeometryFeatures",
+        "line": 21,
+        "signature": "GeometryFeatures",
+        "doc": "Wrap ``StructureFeatureExtractor`` behind one ``compute`` call.",
+        "imports": [
+          "__future__",
+          "pymatgen",
+          "typing"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/geometry.py",
+        "name": "GeometryFeatures.__init__",
+        "line": 26,
+        "signature": "GeometryFeatures.__init__(self, options: dict[str, Any] | None=None)",
+        "doc": "",
+        "imports": [
+          "__future__",
+          "pymatgen",
+          "typing"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/geometry.py",
+        "name": "GeometryFeatures.metadata",
+        "line": 33,
+        "signature": "GeometryFeatures.metadata(self)",
+        "doc": "",
+        "imports": [
+          "__future__",
+          "pymatgen",
+          "typing"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/geometry.py",
+        "name": "GeometryFeatures.compute",
+        "line": 40,
+        "signature": "GeometryFeatures.compute(self, structure: Structure, *, with_sites: bool=True)",
+        "doc": "Return ``(structure_values, site_rows)`` for one structure.\n\nBoth tables come from a single ``extract`` call so the neighbour search\nis not repeated.  Keys are *not* prefixed here; :mod:`api` adds prefixes.",
+        "imports": [
+          "__future__",
+          "pymatgen",
+          "typing"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/mlip.py",
+        "name": "MLIPFeatures",
+        "line": 25,
+        "signature": "MLIPFeatures",
+        "doc": "MACE / M3GNet embedding of one structure.\n\nArgs:\n    model_path: Path of the MLIP model directory or file.\n    encoder: ``\"mace\"`` or ``\"m3gnet\"``.\n    device: Torch device for MACE; ignored by M3GNet.\n    head: Optional MACE head name.\n    layers: MACE interaction layers to use: ``1`` (first), ``2`` (second),\n        ``\"all\"`` (every layer, the default), or a sequence of layer\n        numbers. M3GNet has a single readout and only accepts ``\"all\"``.\n    aggregate: ``\"atom_mean\"`` pools every atom into one vector;\n        ``\"element_mean\"`` pools per chemical element and emits one block\n        per element (``mlip.Na.d000``, ``mlip.Cl.d000``, ...). M3GNet only\n        supports ``\"atom_mean\"``.",
+        "imports": [
+          "Process_MLIP",
+          "__future__",
+          "numpy",
+          "pymatgen",
+          "typing"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/mlip.py",
+        "name": "MLIPFeatures.__init__",
+        "line": 44,
+        "signature": "MLIPFeatures.__init__(self, model_path: str, encoder: str='mace', device: str='cpu', head: str | None=None, layers: str | int | tuple[int, ...] | list[int]='all', aggregate: str='atom_mean')",
+        "doc": "",
+        "imports": [
+          "Process_MLIP",
+          "__future__",
+          "numpy",
+          "pymatgen",
+          "typing"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/mlip.py",
+        "name": "MLIPFeatures.metadata",
+        "line": 87,
+        "signature": "MLIPFeatures.metadata(self)",
+        "doc": "",
+        "imports": [
+          "Process_MLIP",
+          "__future__",
+          "numpy",
+          "pymatgen",
+          "typing"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/mlip.py",
+        "name": "MLIPFeatures.descriptors",
+        "line": 101,
+        "signature": "MLIPFeatures.descriptors(self)",
+        "doc": "The loaded :class:`MACEAtomicDescriptors` (MACE only).",
+        "imports": [
+          "Process_MLIP",
+          "__future__",
+          "numpy",
+          "pymatgen",
+          "typing"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/mlip.py",
+        "name": "MLIPFeatures.names",
+        "line": 109,
+        "signature": "MLIPFeatures.names(self)",
+        "doc": "",
+        "imports": [
+          "Process_MLIP",
+          "__future__",
+          "numpy",
+          "pymatgen",
+          "typing"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/mlip.py",
+        "name": "MLIPFeatures.compute",
+        "line": 120,
+        "signature": "MLIPFeatures.compute(self, structure: Structure, *, with_sites: bool=False)",
+        "doc": "Return the embedding as ``{\"d000\": ...}`` or ``{\"Na.d000\": ...}``.",
+        "imports": [
+          "Process_MLIP",
+          "__future__",
+          "numpy",
+          "pymatgen",
+          "typing"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/registry.py",
+        "name": "FeatureSet",
+        "line": 35,
+        "signature": "FeatureSet",
+        "doc": "One selectable group of feature columns.\n\nAttributes:\n    name: Public name used in ``sets=[...]``.\n    prefix: Prefix every column produced by the set carries, e.g. ``geom.``.\n    levels: Levels the set can fill: ``structure``, ``site`` or both.\n    requires: Importable module names that must be installed.\n    description: One-line human description.",
+        "imports": [
+          "__future__",
+          "dataclasses",
+          "fnmatch",
+          "importlib",
+          "sys",
+          "typing"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/registry.py",
+        "name": "check_dependencies",
+        "line": 91,
+        "signature": "check_dependencies(feature_set: FeatureSet)",
+        "doc": "Raise :class:`ImportError` when a required package is missing.\n\nThe message names the interpreter so a wrong conda environment is easy to\nspot, which is the most common cause on this machine.",
+        "imports": [
+          "__future__",
+          "dataclasses",
+          "fnmatch",
+          "importlib",
+          "sys",
+          "typing"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/registry.py",
+        "name": "resolve_sets",
+        "line": 107,
+        "signature": "resolve_sets(sets: str | Sequence[str] | None)",
+        "doc": "Return the requested feature sets, in request order, without duplicates.",
+        "imports": [
+          "__future__",
+          "dataclasses",
+          "fnmatch",
+          "importlib",
+          "sys",
+          "typing"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/registry.py",
+        "name": "resolve_level",
+        "line": 134,
+        "signature": "resolve_level(level: str)",
+        "doc": "Map ``level`` onto the tables that must be filled.",
+        "imports": [
+          "__future__",
+          "dataclasses",
+          "fnmatch",
+          "importlib",
+          "sys",
+          "typing"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/registry.py",
+        "name": "select_names",
+        "line": 144,
+        "signature": "select_names(names: Iterable[str], include: Sequence[str] | None=None, exclude: Sequence[str] | None=None)",
+        "doc": "Filter full column names with glob patterns.\n\nPatterns are matched against the prefixed name, e.g. ``\"cnn.cn_*\"``.\n``include`` keeps matches only; ``exclude`` then drops matches.",
+        "imports": [
+          "__future__",
+          "dataclasses",
+          "fnmatch",
+          "importlib",
+          "sys",
+          "typing"
+        ]
+      },
+      {
+        "file": "Process_Struct/features/registry.py",
+        "name": "available_sets",
+        "line": 171,
+        "signature": "available_sets()",
+        "doc": "Describe every registered set, including whether it can run right now.",
+        "imports": [
+          "__future__",
+          "dataclasses",
+          "fnmatch",
+          "importlib",
+          "sys",
+          "typing"
         ]
       },
       {
@@ -1720,7 +2421,7 @@
       {
         "file": "Process_Struct/Get_structfeatures_all.py",
         "name": "StructureFeatureExtractor.extract_features",
-        "line": 290,
+        "line": 295,
         "signature": "StructureFeatureExtractor.extract_features(cls, structure: Structure, **kwargs)",
         "doc": "",
         "imports": [
@@ -1810,6 +2511,454 @@
           "Process_Struct",
           "Process_Vasp",
           "pandas",
+          "pymatgen",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Struct/test_features.py",
+        "name": "rocksalt_nacl",
+        "line": 22,
+        "signature": "rocksalt_nacl()",
+        "doc": "Eight-site NaCl with oxidation states so CrystalNN finds six neighbours.",
+        "imports": [
+          "Process_Struct",
+          "importlib",
+          "numpy",
+          "os",
+          "pathlib",
+          "pymatgen",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Struct/test_features.py",
+        "name": "layered_licoo2",
+        "line": 33,
+        "signature": "layered_licoo2()",
+        "doc": "",
+        "imports": [
+          "Process_Struct",
+          "importlib",
+          "numpy",
+          "os",
+          "pathlib",
+          "pymatgen",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Struct/test_features.py",
+        "name": "FeatureExtractionTests",
+        "line": 42,
+        "signature": "FeatureExtractionTests",
+        "doc": "",
+        "imports": [
+          "Process_Struct",
+          "importlib",
+          "numpy",
+          "os",
+          "pathlib",
+          "pymatgen",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Struct/test_features.py",
+        "name": "FeatureExtractionTests.setUpClass",
+        "line": 44,
+        "signature": "FeatureExtractionTests.setUpClass(cls)",
+        "doc": "",
+        "imports": [
+          "Process_Struct",
+          "importlib",
+          "numpy",
+          "os",
+          "pathlib",
+          "pymatgen",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Struct/test_features.py",
+        "name": "FeatureExtractionTests.test_top_level_export_is_the_same_function",
+        "line": 48,
+        "signature": "FeatureExtractionTests.test_top_level_export_is_the_same_function(self)",
+        "doc": "",
+        "imports": [
+          "Process_Struct",
+          "importlib",
+          "numpy",
+          "os",
+          "pathlib",
+          "pymatgen",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Struct/test_features.py",
+        "name": "FeatureExtractionTests.test_default_sets_are_geometry_only",
+        "line": 51,
+        "signature": "FeatureExtractionTests.test_default_sets_are_geometry_only(self)",
+        "doc": "",
+        "imports": [
+          "Process_Struct",
+          "importlib",
+          "numpy",
+          "os",
+          "pathlib",
+          "pymatgen",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Struct/test_features.py",
+        "name": "FeatureExtractionTests.test_crystalnn_counts_six_neighbours_for_rocksalt",
+        "line": 60,
+        "signature": "FeatureExtractionTests.test_crystalnn_counts_six_neighbours_for_rocksalt(self)",
+        "doc": "",
+        "imports": [
+          "Process_Struct",
+          "importlib",
+          "numpy",
+          "os",
+          "pathlib",
+          "pymatgen",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Struct/test_features.py",
+        "name": "FeatureExtractionTests.test_site_level_rows",
+        "line": 68,
+        "signature": "FeatureExtractionTests.test_site_level_rows(self)",
+        "doc": "",
+        "imports": [
+          "Process_Struct",
+          "importlib",
+          "numpy",
+          "os",
+          "pathlib",
+          "pymatgen",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Struct/test_features.py",
+        "name": "FeatureExtractionTests.test_structure_only_level_has_no_sites",
+        "line": 78,
+        "signature": "FeatureExtractionTests.test_structure_only_level_has_no_sites(self)",
+        "doc": "",
+        "imports": [
+          "Process_Struct",
+          "importlib",
+          "numpy",
+          "os",
+          "pathlib",
+          "pymatgen",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Struct/test_features.py",
+        "name": "FeatureExtractionTests.test_include_and_exclude",
+        "line": 82,
+        "signature": "FeatureExtractionTests.test_include_and_exclude(self)",
+        "doc": "",
+        "imports": [
+          "Process_Struct",
+          "importlib",
+          "numpy",
+          "os",
+          "pathlib",
+          "pymatgen",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Struct/test_features.py",
+        "name": "FeatureExtractionTests.test_non_sodium_structure_does_not_raise",
+        "line": 96,
+        "signature": "FeatureExtractionTests.test_non_sodium_structure_does_not_raise(self)",
+        "doc": "",
+        "imports": [
+          "Process_Struct",
+          "importlib",
+          "numpy",
+          "os",
+          "pathlib",
+          "pymatgen",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Struct/test_features.py",
+        "name": "FeatureExtractionTests.test_metadata_records_structure_and_sets",
+        "line": 100,
+        "signature": "FeatureExtractionTests.test_metadata_records_structure_and_sets(self)",
+        "doc": "",
+        "imports": [
+          "Process_Struct",
+          "importlib",
+          "numpy",
+          "os",
+          "pathlib",
+          "pymatgen",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Struct/test_features.py",
+        "name": "FeatureExtractionTests.test_load_structure_accepts_poscar",
+        "line": 107,
+        "signature": "FeatureExtractionTests.test_load_structure_accepts_poscar(self)",
+        "doc": "",
+        "imports": [
+          "Process_Struct",
+          "importlib",
+          "numpy",
+          "os",
+          "pathlib",
+          "pymatgen",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Struct/test_features.py",
+        "name": "FeatureExtractionTests.test_batch_isolates_a_bad_entry",
+        "line": 122,
+        "signature": "FeatureExtractionTests.test_batch_isolates_a_bad_entry(self)",
+        "doc": "",
+        "imports": [
+          "Process_Struct",
+          "importlib",
+          "numpy",
+          "os",
+          "pathlib",
+          "pymatgen",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Struct/test_features.py",
+        "name": "FeatureExtractionTests.test_batch_returns_site_frame",
+        "line": 128,
+        "signature": "FeatureExtractionTests.test_batch_returns_site_frame(self)",
+        "doc": "",
+        "imports": [
+          "Process_Struct",
+          "importlib",
+          "numpy",
+          "os",
+          "pathlib",
+          "pymatgen",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Struct/test_features.py",
+        "name": "FeatureExtractionTests.test_mlip_requires_a_model_path",
+        "line": 136,
+        "signature": "FeatureExtractionTests.test_mlip_requires_a_model_path(self)",
+        "doc": "",
+        "imports": [
+          "Process_Struct",
+          "importlib",
+          "numpy",
+          "os",
+          "pathlib",
+          "pymatgen",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Struct/test_features.py",
+        "name": "FeatureExtractionTests.test_unavailable_optional_set_raises_import_error",
+        "line": 140,
+        "signature": "FeatureExtractionTests.test_unavailable_optional_set_raises_import_error(self)",
+        "doc": "",
+        "imports": [
+          "Process_Struct",
+          "importlib",
+          "numpy",
+          "os",
+          "pathlib",
+          "pymatgen",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Struct/test_features.py",
+        "name": "FeatureExtractionTests.test_available_sets_reports_prefix_and_availability",
+        "line": 146,
+        "signature": "FeatureExtractionTests.test_available_sets_reports_prefix_and_availability(self)",
+        "doc": "",
+        "imports": [
+          "Process_Struct",
+          "importlib",
+          "numpy",
+          "os",
+          "pathlib",
+          "pymatgen",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Struct/test_features.py",
+        "name": "MaceDescriptorTests",
+        "line": 158,
+        "signature": "MaceDescriptorTests",
+        "doc": "Per-layer and per-element MACE descriptor selection (real checkpoint).",
+        "imports": [
+          "Process_Struct",
+          "importlib",
+          "numpy",
+          "os",
+          "pathlib",
+          "pymatgen",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Struct/test_features.py",
+        "name": "MaceDescriptorTests.setUpClass",
+        "line": 162,
+        "signature": "MaceDescriptorTests.setUpClass(cls)",
+        "doc": "",
+        "imports": [
+          "Process_Struct",
+          "importlib",
+          "numpy",
+          "os",
+          "pathlib",
+          "pymatgen",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Struct/test_features.py",
+        "name": "MaceDescriptorTests.test_first_layer_only",
+        "line": 183,
+        "signature": "MaceDescriptorTests.test_first_layer_only(self)",
+        "doc": "",
+        "imports": [
+          "Process_Struct",
+          "importlib",
+          "numpy",
+          "os",
+          "pathlib",
+          "pymatgen",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Struct/test_features.py",
+        "name": "MaceDescriptorTests.test_second_layer_only_differs_from_first",
+        "line": 189,
+        "signature": "MaceDescriptorTests.test_second_layer_only_differs_from_first(self)",
+        "doc": "",
+        "imports": [
+          "Process_Struct",
+          "importlib",
+          "numpy",
+          "os",
+          "pathlib",
+          "pymatgen",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Struct/test_features.py",
+        "name": "MaceDescriptorTests.test_all_layers_concatenate",
+        "line": 197,
+        "signature": "MaceDescriptorTests.test_all_layers_concatenate(self)",
+        "doc": "",
+        "imports": [
+          "Process_Struct",
+          "importlib",
+          "numpy",
+          "os",
+          "pathlib",
+          "pymatgen",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Struct/test_features.py",
+        "name": "MaceDescriptorTests.test_element_mean_emits_one_block_per_element",
+        "line": 202,
+        "signature": "MaceDescriptorTests.test_element_mean_emits_one_block_per_element(self)",
+        "doc": "",
+        "imports": [
+          "Process_Struct",
+          "importlib",
+          "numpy",
+          "os",
+          "pathlib",
+          "pymatgen",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Struct/test_features.py",
+        "name": "M3GNetEncoderTests",
+        "line": 217,
+        "signature": "M3GNetEncoderTests",
+        "doc": "The M3GNet checkpoint path, loaded once per class.",
+        "imports": [
+          "Process_Struct",
+          "importlib",
+          "numpy",
+          "os",
+          "pathlib",
+          "pymatgen",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Struct/test_features.py",
+        "name": "M3GNetEncoderTests.setUpClass",
+        "line": 221,
+        "signature": "M3GNetEncoderTests.setUpClass(cls)",
+        "doc": "",
+        "imports": [
+          "Process_Struct",
+          "importlib",
+          "numpy",
+          "os",
+          "pathlib",
+          "pymatgen",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Struct/test_features.py",
+        "name": "M3GNetEncoderTests.test_structure_vector_has_64_named_columns",
+        "line": 235,
+        "signature": "M3GNetEncoderTests.test_structure_vector_has_64_named_columns(self)",
+        "doc": "",
+        "imports": [
+          "Process_Struct",
+          "importlib",
+          "numpy",
+          "os",
+          "pathlib",
+          "pymatgen",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Struct/test_features.py",
+        "name": "M3GNetEncoderTests.test_mace_only_options_are_rejected",
+        "line": 243,
+        "signature": "M3GNetEncoderTests.test_mace_only_options_are_rejected(self)",
+        "doc": "",
+        "imports": [
+          "Process_Struct",
+          "importlib",
+          "numpy",
+          "os",
+          "pathlib",
           "pymatgen",
           "unittest"
         ]
@@ -3071,6 +4220,71 @@
     ],
     "symbols": [
       {
+        "file": "Process_MLIP/al_sampling.py",
+        "name": "WeightedKMeansPlusPlusSampler",
+        "line": 213,
+        "signature": "WeightedKMeansPlusPlusSampler",
+        "doc": "Weighted k-means++: sample the next point with ``P(i) ∝ w_i d_i²``.\n\nThe first point follows the same rule against ``labeled``; when ``labeled``\nis empty it is drawn with probability ``∝ w_i``. ``random_state`` reseeds\nevery ``select`` call, so identical inputs give identical selections.\nZero probabilities (duplicate features, zero weights) fall back to the\nhighest-weight available candidate, first position on ties.",
+        "imports": [
+          "__future__",
+          "numpy",
+          "scipy",
+          "typing"
+        ]
+      },
+      {
+        "file": "Process_MLIP/al_sampling.py",
+        "name": "WeightedKMeansPlusPlusSampler.__init__",
+        "line": 223,
+        "signature": "WeightedKMeansPlusPlusSampler.__init__(self, random_state=None, *, chunk_size=512)",
+        "doc": "",
+        "imports": [
+          "__future__",
+          "numpy",
+          "scipy",
+          "typing"
+        ]
+      },
+      {
+        "file": "Process_MLIP/al_sampling.py",
+        "name": "WeightedFarthestFirstSampler",
+        "line": 252,
+        "signature": "WeightedFarthestFirstSampler",
+        "doc": "Weighted farthest-first: pick ``argmax_i w_i d_i²`` every step.\n\nWith empty ``labeled`` the first pick is the highest-weight candidate. Ties\nkeep the earlier candidate position, so the sampler is deterministic.",
+        "imports": [
+          "__future__",
+          "numpy",
+          "scipy",
+          "typing"
+        ]
+      },
+      {
+        "file": "Process_MLIP/al_sampling.py",
+        "name": "WeightedNMSSampler",
+        "line": 281,
+        "signature": "WeightedNMSSampler",
+        "doc": "Weighted non-maximum suppression with a fixed feature-space radius.\n\nCandidates are visited by descending weight (stable on ties) and kept only\nwhen farther than ``radius`` from ``labeled`` and every accepted candidate.\nIt may return fewer than ``n_select`` IDs and never pads the result.",
+        "imports": [
+          "__future__",
+          "numpy",
+          "scipy",
+          "typing"
+        ]
+      },
+      {
+        "file": "Process_MLIP/al_sampling.py",
+        "name": "WeightedNMSSampler.__init__",
+        "line": 289,
+        "signature": "WeightedNMSSampler.__init__(self, radius, *, chunk_size=512)",
+        "doc": "",
+        "imports": [
+          "__future__",
+          "numpy",
+          "scipy",
+          "typing"
+        ]
+      },
+      {
         "file": "Process_MLIP/benchmark/__main__.py",
         "name": "main",
         "line": 8,
@@ -3781,14 +4995,15 @@
       },
       {
         "file": "Process_MLIP/direct_sampling/features.py",
-        "name": "MACEEmbedding",
-        "line": 41,
-        "signature": "MACEEmbedding",
-        "doc": "",
+        "name": "MACEAtomicDescriptors",
+        "line": 69,
+        "signature": "MACEAtomicDescriptors",
+        "doc": "Per-atom invariant MACE descriptors with selectable interaction layers.\n\n``layers`` counts MACE interaction blocks: ``1`` is the first layer, ``2``\nthe second, ``\"all\"`` (default) every layer in the checkpoint.  The public\n``MACECalculator.get_descriptors`` only returns cumulative layers, so a\nsingle layer is sliced out of the model's ``node_feats`` (the l=0 block of\nthat layer).  The slice reproduces the official cumulative output exactly;\n``Process_MLIP/tests/test_mace_descriptors.py`` guards that equality.",
         "imports": [
           "Process_MLIP",
           "ase",
           "contextlib",
+          "e3nn",
           "hashlib",
           "m3gnet",
           "maml",
@@ -3796,19 +5011,109 @@
           "pathlib",
           "pymatgen",
           "sys",
-          "threading"
+          "threading",
+          "torch"
+        ]
+      },
+      {
+        "file": "Process_MLIP/direct_sampling/features.py",
+        "name": "MACEAtomicDescriptors.__init__",
+        "line": 80,
+        "signature": "MACEAtomicDescriptors.__init__(self, model_path, device='cpu', head=None)",
+        "doc": "",
+        "imports": [
+          "Process_MLIP",
+          "ase",
+          "contextlib",
+          "e3nn",
+          "hashlib",
+          "m3gnet",
+          "maml",
+          "numpy",
+          "pathlib",
+          "pymatgen",
+          "sys",
+          "threading",
+          "torch"
+        ]
+      },
+      {
+        "file": "Process_MLIP/direct_sampling/features.py",
+        "name": "MACEAtomicDescriptors.per_atom",
+        "line": 96,
+        "signature": "MACEAtomicDescriptors.per_atom(self, atoms, layers='all')",
+        "doc": "Return ``(n_atoms, dim_per_layer * len(layers))`` invariant descriptors.",
+        "imports": [
+          "Process_MLIP",
+          "ase",
+          "contextlib",
+          "e3nn",
+          "hashlib",
+          "m3gnet",
+          "maml",
+          "numpy",
+          "pathlib",
+          "pymatgen",
+          "sys",
+          "threading",
+          "torch"
+        ]
+      },
+      {
+        "file": "Process_MLIP/direct_sampling/features.py",
+        "name": "MACEAtomicDescriptors.aggregate",
+        "line": 111,
+        "signature": "MACEAtomicDescriptors.aggregate(self, atoms, mode='atom_mean', layers='all')",
+        "doc": "Pool per-atom descriptors into one vector or one vector per element.",
+        "imports": [
+          "Process_MLIP",
+          "ase",
+          "contextlib",
+          "e3nn",
+          "hashlib",
+          "m3gnet",
+          "maml",
+          "numpy",
+          "pathlib",
+          "pymatgen",
+          "sys",
+          "threading",
+          "torch"
+        ]
+      },
+      {
+        "file": "Process_MLIP/direct_sampling/features.py",
+        "name": "MACEEmbedding",
+        "line": 121,
+        "signature": "MACEEmbedding",
+        "doc": "Mean-pooled MACE descriptors, the structure-level encoder of the CLI.",
+        "imports": [
+          "Process_MLIP",
+          "ase",
+          "contextlib",
+          "e3nn",
+          "hashlib",
+          "m3gnet",
+          "maml",
+          "numpy",
+          "pathlib",
+          "pymatgen",
+          "sys",
+          "threading",
+          "torch"
         ]
       },
       {
         "file": "Process_MLIP/direct_sampling/features.py",
         "name": "MACEEmbedding.__init__",
-        "line": 42,
-        "signature": "MACEEmbedding.__init__(self, model_path, device='cpu', head=None)",
+        "line": 124,
+        "signature": "MACEEmbedding.__init__(self, model_path, device='cpu', head=None, layers='all')",
         "doc": "",
         "imports": [
           "Process_MLIP",
           "ase",
           "contextlib",
+          "e3nn",
           "hashlib",
           "m3gnet",
           "maml",
@@ -3816,19 +5121,21 @@
           "pathlib",
           "pymatgen",
           "sys",
-          "threading"
+          "threading",
+          "torch"
         ]
       },
       {
         "file": "Process_MLIP/direct_sampling/features.py",
         "name": "M3GNetEmbedding",
-        "line": 55,
+        "line": 136,
         "signature": "M3GNetEmbedding",
         "doc": "Paper formation-energy structure encoder, provided by maml.",
         "imports": [
           "Process_MLIP",
           "ase",
           "contextlib",
+          "e3nn",
           "hashlib",
           "m3gnet",
           "maml",
@@ -3836,19 +5143,21 @@
           "pathlib",
           "pymatgen",
           "sys",
-          "threading"
+          "threading",
+          "torch"
         ]
       },
       {
         "file": "Process_MLIP/direct_sampling/features.py",
         "name": "M3GNetEmbedding.__init__",
-        "line": 57,
+        "line": 138,
         "signature": "M3GNetEmbedding.__init__(self, model_path)",
         "doc": "",
         "imports": [
           "Process_MLIP",
           "ase",
           "contextlib",
+          "e3nn",
           "hashlib",
           "m3gnet",
           "maml",
@@ -3856,19 +5165,21 @@
           "pathlib",
           "pymatgen",
           "sys",
-          "threading"
+          "threading",
+          "torch"
         ]
       },
       {
         "file": "Process_MLIP/direct_sampling/features.py",
         "name": "build_encoder",
-        "line": 91,
-        "signature": "build_encoder(model_path, encoder='m3gnet', *, device='cpu', head=None)",
-        "doc": "Return a structure encoder; both encoders import their dependencies lazily.",
+        "line": 215,
+        "signature": "build_encoder(model_path, encoder='m3gnet', *, device='cpu', head=None, layers='all')",
+        "doc": "Return a structure encoder; both encoders import their dependencies lazily.\n\n``layers`` selects MACE interaction layers (``1``, ``2``, ``\"all\"``); the\nM3GNet encoder has a single graph readout and rejects any other value.",
         "imports": [
           "Process_MLIP",
           "ase",
           "contextlib",
+          "e3nn",
           "hashlib",
           "m3gnet",
           "maml",
@@ -3876,7 +5187,8 @@
           "pathlib",
           "pymatgen",
           "sys",
-          "threading"
+          "threading",
+          "torch"
         ]
       },
       {
@@ -3941,6 +5253,47 @@
           "numpy",
           "pathlib",
           "time"
+        ]
+      },
+      {
+        "file": "Process_MLIP/dxr_msd.py",
+        "name": "DXR_MSD",
+        "line": 100,
+        "signature": "DXR_MSD(trajectory, output_csv=None, *, species=None, frame_interval_fs=None, skip_frames=0, max_lag_ratio=0.7, fit_start_ps=1.0, fit_end_ps=None, temperature_K=None, volume_A3=None, ion_charge=1, drift_reference='framework', output_json=None, overwrite=False)",
+        "doc": "All-origin FFT MSD and optional Nernst-Einstein conductivity.\n\ntrajectory: `.traj`, `.xyz` or gzip-compressed archive readable by ASE.\nspecies: element string, list/tuple, or None (every element), analysed\nelement by element. skip_frames drops equilibration frames.\nframe_interval_fs: time between saved frames; when None it is read from an\nadjacent report.json, which requires equally spaced frames.\nmax_lag_ratio: largest lag as a fraction of the run (0 < r < 1).\nfit_start_ps/fit_end_ps: inclusive fit window in ps; None ends at the last\nlag. At least three positive-lag samples are required.\ndrift_reference='framework' subtracts the mass-weighted centre-of-mass\ndisplacement of the atoms outside ``species`` (same convention as\n``export_msd``); None keeps the raw diffusion. Wrapped frames are always\nunwrapped with fractional minimum-image increments; a constant cell and\nfixed atom order are required (NVT only).\ntemperature_K: positive Kelvin for the conductivity; None returns only the\ndiffusion coefficient. volume_A3 defaults to the trajectory cell volume.\nion_charge: signed nonzero charge number, or a dict per element.\noutput_csv: writes the MSD curve with the same columns as ``export_msd``;\noutput_json: writes the full result. Both refuse to overwrite by default.\n\nReturns slopes, intercepts, R^2 and slope standard errors for x/y/z/total,\nD = slope/6 (cm^2/s and m^2/s), directional D = slope_axis/2, and the\nuncorrelated sigma_NE in S/cm and S/m. No models are loaded and the input\ntrajectory is never modified.",
+        "imports": [
+          "ase",
+          "csv",
+          "gzip",
+          "json",
+          "numbers",
+          "numpy",
+          "os",
+          "pathlib",
+          "shutil",
+          "tempfile"
+        ]
+      },
+      {
+        "file": "Process_MLIP/examples/al_sampling.py",
+        "name": "make_data",
+        "line": 23,
+        "signature": "make_data()",
+        "doc": "Return synthetic candidates, labeled configurations and weights.",
+        "imports": [
+          "Process_MLIP",
+          "numpy"
+        ]
+      },
+      {
+        "file": "Process_MLIP/examples/al_sampling.py",
+        "name": "main",
+        "line": 38,
+        "signature": "main()",
+        "doc": "",
+        "imports": [
+          "Process_MLIP",
+          "numpy"
         ]
       },
       {

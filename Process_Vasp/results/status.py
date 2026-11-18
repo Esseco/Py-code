@@ -1,5 +1,7 @@
 """VASP completion, convergence, and error status reader."""
 
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Any
 from monty.os.path import zpath

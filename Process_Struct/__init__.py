@@ -27,6 +27,10 @@ _EXPORTS = {
     "screen_substitutions": "Chemical_Capacity_Constraints",
     "analyze_percolation": "percolation",
     "estimate_spatial_capacity": "spatial_capacity",
+    "FeatureExtractor": "features",
+    "FeatureResult": "features",
+    "extract_features": "features",
+    "extract_many": "features",
 }
 
 __all__ = list(_EXPORTS)

@@ -1,5 +1,7 @@
 """DOS reader and CSV exporter."""
 
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Any
 

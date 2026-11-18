@@ -108,7 +108,7 @@ Execution uses the installed Process_Vasp project and atomate2/AMSET as needed.
 
 ## `generate_excited_input`
 
-源文件：[inputs/excitation.py](inputs/excitation.py)，第 16 行。
+源文件：[inputs/excitation.py](inputs/excitation.py)，第 18 行。
 
 ```python
 generate_excited_input(ground_dir: str | Path, target_dir: str | Path, *, spin: str | None='auto', valence_band: int | None=None, conduction_band: int | None=None)
@@ -144,7 +144,7 @@ only; completed new stages are reused on resubmission. No random seed.
 
 ## `generate_atomate_input`
 
-源文件：[inputs/generation.py](inputs/generation.py)，第 16 行。
+源文件：[inputs/generation.py](inputs/generation.py)，第 18 行。
 
 ```python
 generate_atomate_input(directory: str | Path, structure: str | Path, calculation: Literal['relax', 'static', 'dos', 'band']='relax', incar_settings: dict[str, dict] | None=None, kpoints_settings: dict[str, dict] | None=None, job_name: str | None=None, resume_from: dict[str, str] | None=None, export_plot_data: bool=False)
@@ -165,7 +165,7 @@ stage succeeds. It can be enabled later without repeating VASP calculations.
 
 ## `convert_dos_to_unix`
 
-源文件：[inputs/generation.py](inputs/generation.py)，第 102 行。
+源文件：[inputs/generation.py](inputs/generation.py)，第 104 行。
 
 ```python
 convert_dos_to_unix(file_path: Path)
@@ -175,7 +175,7 @@ Convert CRLF line endings to LF in one file.
 
 ## `convert_files_in_directory`
 
-源文件：[inputs/generation.py](inputs/generation.py)，第 112 行。
+源文件：[inputs/generation.py](inputs/generation.py)，第 114 行。
 
 ```python
 convert_files_in_directory(directory_path: str | Path)
@@ -185,7 +185,7 @@ Recursively convert files below a directory to Unix line endings.
 
 ## `generate_vasp_input`
 
-源文件：[inputs/generation.py](inputs/generation.py)，第 119 行。
+源文件：[inputs/generation.py](inputs/generation.py)，第 121 行。
 
 ```python
 generate_vasp_input(struct: Structure, tar_dir: str | Path, incar_set: dict, potcar_set: bool, lsfname: str, kpoints_set: Kpoints | None=None)
@@ -195,7 +195,7 @@ Generate INCAR, KPOINTS, optional POTCAR, and the LSF script.
 
 ## `get_INCAR_NUPDOWN`
 
-源文件：[inputs/generation.py](inputs/generation.py)，第 146 行。
+源文件：[inputs/generation.py](inputs/generation.py)，第 148 行。
 
 ```python
 get_INCAR_NUPDOWN(struct: Structure)
@@ -205,7 +205,7 @@ Estimate NUPDOWN from Na, Fe, and Mn composition.
 
 ## `set_incar_tags`
 
-源文件：[inputs/incar.py](inputs/incar.py)，第 17 行。
+源文件：[inputs/incar.py](inputs/incar.py)，第 19 行。
 
 ```python
 set_incar_tags(lines: Iterable[str], updates: Mapping[str, object])
@@ -215,7 +215,7 @@ Replace existing INCAR tags and append tags that are absent.
 
 ## `update_incar`
 
-源文件：[inputs/incar.py](inputs/incar.py)，第 42 行。
+源文件：[inputs/incar.py](inputs/incar.py)，第 44 行。
 
 ```python
 update_incar(init_dir: str | Path, tar_dir: str | Path, mode: str, spin: int | None=None, nupdown: float | None=None, updates: Mapping[str, object] | None=None)
@@ -225,7 +225,7 @@ Copy and update INCAR in ``Spin`` or ``Correct`` mode.
 
 ## `copy_vasp_files`
 
-源文件：[inputs/incar.py](inputs/incar.py)，第 76 行。
+源文件：[inputs/incar.py](inputs/incar.py)，第 78 行。
 
 ```python
 copy_vasp_files(init_dir: str | Path, tar_dir: str | Path, files: Mapping[str, str] | Sequence[str] | None=None)
@@ -240,7 +240,7 @@ copied as ``POSCAR``. Edit :data:`DEFAULT_VASP_FILES` to extend the defaults.
 
 ## `copy_file`
 
-源文件：[inputs/incar.py](inputs/incar.py)，第 111 行。
+源文件：[inputs/incar.py](inputs/incar.py)，第 113 行。
 
 ```python
 copy_file(init_dir: str | Path, tar_dir: str | Path)
@@ -268,7 +268,7 @@ Requires pymatgen only when validate=True. No random seed or file writes.
 
 ## `read_dos`
 
-源文件：[results/dos.py](results/dos.py)，第 24 行。
+源文件：[results/dos.py](results/dos.py)，第 26 行。
 
 ```python
 read_dos(init_dir: str | Path, output_csv: str | Path | None=None, read_ipr: bool=False, include_orbital: bool=False, ipr_sigma: float | None=None, *, include_element: bool=True, include_total: bool=True, shift_fermi: bool=True, mirror_spin_down: bool=False)
@@ -300,7 +300,7 @@ Returns:
 
 ## `read_ipr_data`
 
-源文件：[results/dos.py](results/dos.py)，第 219 行。
+源文件：[results/dos.py](results/dos.py)，第 221 行。
 
 ```python
 read_ipr_data(init_dir: str | Path, output_csv: str | Path | None=None, efermi: float | None=None)
@@ -320,7 +320,7 @@ Returns:
 
 ## `read_ipr`
 
-源文件：[results/dos.py](results/dos.py)，第 280 行。
+源文件：[results/dos.py](results/dos.py)，第 282 行。
 
 ```python
 read_ipr(init_dir: str | Path, output_csv: str | Path | None=None, efermi: float | None=None)
@@ -384,9 +384,29 @@ read_magnetic_moments_outcar 的 Docstring
 :return: elements, magnetic_moments, total_magnetic_moment
 :rtype: tuple
 
+## `read_element_moments`
+
+源文件：[results/magnetism.py](results/magnetism.py)，第 67 行。
+
+```python
+read_element_moments(directory, *, structure=None, parameters=None)
+```
+
+Aggregate the final local magnetic moments per chemical element.
+
+Only the last magnetization table (final ionic step) is read, through
+:func:`Process_Vasp.results.magnetic_check.read_dft_magnetic_data`, so
+compressed OUTCAR and SOC handling stay in one place. Units are mu_B.
+
+Returns ``available``, ``elements`` (symbol -> ``count``/``sum``/``mean``
+plus ``min``/``max`` for collinear runs or ``norm_mean`` for non-collinear
+ones), ``moments`` in atom order, ``noncollinear`` and ``total_local_moment``.
+Missing or invalid data gives ``available=False`` with the reader's error
+instead of zeros. Read-only: no file writes and no VASP execution.
+
 ## `read_vasp_output`
 
-源文件：[results/reader.py](results/reader.py)，第 82 行。
+源文件：[results/reader.py](results/reader.py)，第 84 行。
 
 ```python
 read_vasp_output(init_dir: str | Path, last_step: bool=True, efsm: str='e', read_dos: bool=False)
@@ -405,7 +425,7 @@ Returns:
 
 ## `read_vasp_status`
 
-源文件：[results/status.py](results/status.py)，第 44 行。
+源文件：[results/status.py](results/status.py)，第 46 行。
 
 ```python
 read_vasp_status(init_dir: str | Path)
@@ -421,7 +441,7 @@ Returns:
 
 ## `deduplicate`
 
-源文件：[structures/structure.py](structures/structure.py)，第 14 行。
+源文件：[structures/structure.py](structures/structure.py)，第 16 行。
 
 ```python
 deduplicate(struc_lst: list)
@@ -431,7 +451,7 @@ Load the optional structure toolkit only when deduplication is used.
 
 ## `deduplicate_dict`
 
-源文件：[structures/structure.py](structures/structure.py)，第 21 行。
+源文件：[structures/structure.py](structures/structure.py)，第 23 行。
 
 ```python
 deduplicate_dict(struc_dict: dict)
@@ -441,7 +461,7 @@ Deduplicate a structure dictionary with the shared implementation.
 
 ## `deduplicate_df`
 
-源文件：[structures/structure.py](structures/structure.py)，第 28 行。
+源文件：[structures/structure.py](structures/structure.py)，第 30 行。
 
 ```python
 deduplicate_df(df: pd.DataFrame, n_keep: int, struct_col: str='struct', energy_col: str='energy_mean_per_atom')
@@ -451,7 +471,7 @@ Deduplicate a table with the shared implementation.
 
 ## `gen_ESGS_structure`
 
-源文件：[structures/structure.py](structures/structure.py)，第 40 行。
+源文件：[structures/structure.py](structures/structure.py)，第 42 行。
 
 ```python
 gen_ESGS_structure(disordered_structure: Structure, nstr: int)
@@ -468,7 +488,7 @@ gen_ESGS_structure 的 Docstring
 
 ## `gen_ESGS_by_content`
 
-源文件：[structures/structure.py](structures/structure.py)，第 103 行。
+源文件：[structures/structure.py](structures/structure.py)，第 105 行。
 
 ```python
 gen_ESGS_by_content(struct, contents, count=1, *, species='Li', nstr=None, oxidation_states=None, dedu=True, max_candidates=512)
@@ -498,7 +518,7 @@ keep their oxidation states; POSCAR output is unaffected.
 
 ## `generate_neb_endpoints`
 
-源文件：[structures/structure.py](structures/structure.py)，第 188 行。
+源文件：[structures/structure.py](structures/structure.py)，第 190 行。
 
 ```python
 generate_neb_endpoints(fully_intercalated_structure: Structure, deintercalated_structure: Structure, mobile_ion: str, mode: str='random', num_paths_per_ion: int=1, indices: int | Iterable[int] | None=None, random_num: int=3, max_distance: float=5.0, dedu: bool=False, match_tol: float=0.6, overlap_tol: float=0.5, seed: int | None=None)
@@ -512,7 +532,7 @@ ion-vacancy pairs are sampled without replacement.
 
 ## `check_layer_equal`
 
-源文件：[structures/structure.py](structures/structure.py)，第 349 行。
+源文件：[structures/structure.py](structures/structure.py)，第 351 行。
 
 ```python
 check_layer_equal(structure: Structure, element: str='Na', target_layers: int=3, EL_Equal: bool=True)
@@ -533,7 +553,7 @@ check_layer_equal 的 Docstring
 
 ## `build_redox_disordered_structure`
 
-源文件：[structures/structure.py](structures/structure.py)，第 404 行。
+源文件：[structures/structure.py](structures/structure.py)，第 406 行。
 
 ```python
 build_redox_disordered_structure(struct, na_num_now)
@@ -543,7 +563,7 @@ build_redox_disordered_structure(struct, na_num_now)
 
 ## `remove_oxi`
 
-源文件：[structures/structure.py](structures/structure.py)，第 443 行。
+源文件：[structures/structure.py](structures/structure.py)，第 445 行。
 
 ```python
 remove_oxi(struct)
@@ -553,7 +573,7 @@ remove_oxi(struct)
 
 ## `Na1_to_Nax`
 
-源文件：[structures/structure.py](structures/structure.py)，第 455 行。
+源文件：[structures/structure.py](structures/structure.py)，第 457 行。
 
 ```python
 Na1_to_Nax(struct, tar_dir, interval=3, nstr=3, tar_layer=None, equal_num=None, select_num=None, dedu=False, is_Na0=False, phase=None)
@@ -667,6 +687,36 @@ ReadDosTests.test_missing_projection(self)
 
 ```python
 ReadDosTests.test_gzip_outputs(self)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `test_collinear_aggregation_keeps_atom_order`
+
+源文件：[tests/test_element_moments.py](tests/test_element_moments.py)，第 41 行。
+
+```python
+test_collinear_aggregation_keeps_atom_order(tmp_path)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `test_noncollinear_keeps_vectors_and_norm`
+
+源文件：[tests/test_element_moments.py](tests/test_element_moments.py)，第 57 行。
+
+```python
+test_noncollinear_keeps_vectors_and_norm(tmp_path)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `test_missing_data_is_explicit`
+
+源文件：[tests/test_element_moments.py](tests/test_element_moments.py)，第 66 行。
+
+```python
+test_missing_data_is_explicit(tmp_path)
 ```
 
 原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。

@@ -87,6 +87,30 @@ compare_force_results(["chgnet_forces.json", "another_forces.json"], "deviation.
 
 读取 ASE 支持的轨迹或结构文件，`index` 按 ASE 规则选择，默认全部帧；每次加载一个模型，不弛豫。保存每个原子的未施加约束的三维力（eV/Å）、结构身份和模型配置。比较严格要求相同顺序的几何、晶胞、周期性及原子顺序，至少两个结果；分母为模型数，逐原子方差为三个方向方差之和，偏差为其平方根，每帧输出最大、平均和最小偏差。它是模型间分歧，不是 DFT 误差。结果 JSON 默认拒绝覆盖；失败不写入完整结果。模型需在其专用环境可用，命名预训练模型可能下载权重。
 
+## 主动学习选点（加权采样）
+
+```python
+import numpy as np
+from Process_MLIP import (
+    WeightedKMeansPlusPlusSampler,
+    WeightedFarthestFirstSampler,
+    WeightedNMSSampler,
+)
+
+candidates = {"struct_001": {"features": np.array([...])}}
+labeled = {"dft_001": {"features": np.array([...])}}
+weights = {"struct_001": 0.85}
+
+selected = WeightedKMeansPlusPlusSampler(random_state=0).select(
+    candidates, labeled, weights, n_select=100
+)
+```
+
+三个采样器共用 `d_i`：候选 `i` 到 `labeled` 与本轮已选构型的最近欧氏距离。kmeans++ 按 `P(i) ∝ w_i d_i²` 抽样，`random_state` 保证可复现；farthest-first 每步取 `argmax_i w_i d_i²`；NMS 按权重降序保留距 `labeled` 和已选构型大于 `radius` 的候选，可返回少于 `n_select` 个且不补齐。`labeled` 为空时，kmeans++ 首点按权重抽样、farthest-first 取最高权重。
+
+特征与权重都不归一化：QBC/能量/应力等融合在采样器外部完成，采样器只接收最终非负权重。初始最近距离按候选分块计算，之后每次选点只增量更新，不构建候选两两距离矩阵；10,000 候选 × 1,000 已算 × 128–256 维、选 100 个实测 0.7–1.5 s（py1，CPU）。示例：[al_sampling.py](examples/al_sampling.py)。
+
+
 ## VASP 结果转为 MACE 微调数据
 
 ```python

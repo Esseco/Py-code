@@ -21,4 +21,6 @@ report = check_layered_oxide_moments(
 
 `read_dft_magnetic_data(directory, *, structure=None, parameters=None)` 只读最后计算的全部元素局域磁矩，不判断范围或层状身份。返回原子顺序 `elements`、`moments` 和 `sites`（atom_index/element/moment），unit=mu_B、来源和读失败原因；共线保存标量，SOC/非共线保存能解析出的 xyz 矢量。无法解析则 available/unavailable 状态明确区分，不补零。此数据读取功能不限定 Fe/Mn；限定的是后续合理性判断。
 
+`read_element_moments(directory, *, structure=None, parameters=None)` 在同一份「最后一张表」数据上按元素聚合，默认就只取最后一步：返回 `elements`（元素 → `count`/`sum`/`mean`/`moments`，共线另给 `min`/`max`，SOC 给 `norm_mean`）、`atom_elements`、`n_atoms`、`total_local_moment`。不可用时 `available=False` 并带 `error`，同样不填零。它只聚合、不做范围判断，也不写文件或启动 VASP。
+
 PhaseDiagram 远端只保存原数据，回传不因磁矩异常拒收。Agent 的本地科学分析才检查层状 Fe/Mn 氧化物自旋：passed 才用于相图/微调/误差，异常或未知保留原始数据并暂缓科学使用。公共函数仍不自动改文件或任务，磁矩范围通过不等于已证明磁性基态。

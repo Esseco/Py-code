@@ -12,7 +12,8 @@
 | 理论容量 | theoretical_specific_capacity | 化学式、迁移离子 → mAh/g | [capacity.py](examples/capacity.py) |
 | Wyckoff 分组 | get_wyckoff_sites | Structure、容差 → 分组列表 | [wyckoff_sites.py](examples/wyckoff_sites.py) |
 | 八面体畸变 | analyze_octahedra_distortion / Octahedron | 有序氧化物结构 → 局域畸变记录 | [octahedra.py](examples/octahedra.py) |
-| 结构特征 | StructureFeatureExtractor | Na/O 层状结构 → global/local 字典 | [structure_features.py](examples/structure_features.py) |
+| 结构特征 | StructureFeatureExtractor | 结构 → global/local 字典（Na/O 比值缺失时为 NaN） | [structure_features.py](examples/structure_features.py) |
+| 统一结构特征 | extract_features / FeatureExtractor | 结构（Structure/Atoms/文件）+ 特征集选择 → FeatureResult（扁平 values、位点表、metadata） | [feature_sets.py](examples/feature_sets.py) |
 | 几何通道连通 | analyze_percolation | 结构、迁移元素、探针半径 → 通道结果 | [percolation.py](examples/percolation.py) |
 | 通道位点导出示例 | analyze_percolation + 示例导出 | 结构、迁移元素、探针半径 → 标记 CIF、间隙与瓶颈 CSV | [percolation_sites.py](examples/percolation_sites.py) |
 | 化学容量约束 | estimate_redox_capacity / estimate_mobile_ion_window | 化学组成及约束 → 容量与离子窗口 | [子项目说明](Chemical_Capacity_Constraints/README.md) |
@@ -29,6 +30,7 @@ python -m Process_Struct.examples.capacity
 python -m Process_Struct.examples.wyckoff_sites
 python -m Process_Struct.examples.octahedra
 python -m Process_Struct.examples.structure_features
+python -m Process_Struct.examples.feature_sets
 python -m Process_Struct.examples.percolation
 python -m Process_Struct.examples.percolation_sites
 ```
@@ -65,9 +67,39 @@ expanded.make_supercell(recommended[0])
 - 理论容量按化学式中全部迁移离子可转移的计量计算，不是实验可逆容量；摩尔质量包含完整化学式。原函数的 pymatgen 单位对象附带 amu 标签，模板用 float 展示计算公式对应的 mAh/g。
 - Wyckoff 分组依赖 symprec（Å）和 angle_tolerance（度）；返回包含 PeriodicSite，不能直接用普通 json.dump 写出整个对象。
 - 八面体分析默认 O 配体及 Fe/Mn 中心；局部失败可能打印错误并返回缺少畸变字段的记录，需要检查完整性。
-- StructureFeatureExtractor 当前无论特征选择如何都计算 Na/O 比值，不是任意材料的通用提取器；特征组使用列表，如 ["lattice"]，避免传单个组名字符串。
+- StructureFeatureExtractor 支持非 Na/O 体系：缺少 Na 或 O 时 Na_ratio 记为 NaN，不再抛 KeyError；octahedra 组依赖 octadist，缺失时该组全为 NaN（ccnb 环境即如此）；特征组使用列表，如 ["lattice"]，避免传单个组名字符串。
 - 通道维数是几何连通性，不代表迁移能垒。CCNB/CAVD 依赖、氧化态和探针模型需要单独确认。
 - 形成能/电压必须明确每原子、每化学式或离子归一化，不能混合不同能量基准。
+
+### 统一结构特征
+
+```python
+from Process_Struct import extract_features, FeatureExtractor
+
+r = extract_features(structure, sets=["geometry", "cnn"])
+r.values      # {"geom.a": 5.64, "cnn.cn_mean": 6.0, ...}
+r.names       # 与 values 同序的列名
+r.to_frame()  # 单行 DataFrame
+r.warnings    # CrystalNN/pymatgen 的原始提示
+
+both = FeatureExtractor(sets=["geometry", "cnn"], level="both")(structure)
+both.sites    # 逐位点记录，可直接转 to_site_frame()
+
+model = "E:/Py-Code/MLIP_model/mace/mace-omat-0-medium.model"
+mlip = FeatureExtractor(sets=["mlip"], encoder="mace", model_path=model)
+vector = mlip(atoms)  # 模型只在构造期加载一次；默认两层描述符拼接（2×128）后逐原子平均
+
+layer1 = FeatureExtractor(
+    sets=["mlip"], encoder="mace", model_path=model, mlip_layers=1
+)(atoms)  # 只取第一层（128 维）
+by_element = FeatureExtractor(
+    sets=["mlip"], encoder="mace", model_path=model, mlip_aggregate="element_mean"
+)(atoms)  # 每个元素一段：mlip.Na.d000…、mlip.Cl.d000…
+```
+
+四类特征集用前缀区分：`geometry`（`geom.`，默认，委托 StructureFeatureExtractor）、`cnn`（`cnn.`，pymatgen CrystalNN 配位数统计与逐位点 CN）、`cnn_fp`（`cnn_fp.`，matminer CrystalNN 指纹，可选依赖）、`mlip`（`mlip.`，MACE 逐层描述符或 M3GNet 平均池化 embedding）。`mlip` 额外支持 `mlip_layers`（`1`/`2`/`"all"`，默认 `"all"`）与 `mlip_aggregate`（`"atom_mean"`/`"element_mean"`，默认 `"atom_mean"`）；M3GNet 没有逐层描述符，只接受默认值。`sets` 是粗选，`include`/`exclude` 用 glob（如 `"geom.lattice.*"`）细化到叶子；输入接受 pymatgen Structure、ASE Atoms 或结构文件路径。默认只开 `geometry`，毫秒级；`cnn`/`cnn_fp`/`mlip` 必须显式点选。
+
+`extract_many` 逐结构隔离失败：坏结构进入 `status="error"` 与 `error` 列，不中断整批；`return_sites=True` 时返回结构表与位点表。非数值位点字段（如 `O_neighbors` 的邻居索引列表）不进入位点表，并在 `warnings` 中记录。`metadata` 保存特征集、结构摘要、模型 sha256、matminer 版本与是否带氧化态。缺依赖在构造期抛明确 ImportError，不静默降级。
 
 ## 功能边界
 
@@ -75,7 +107,7 @@ expanded.make_supercell(recommended[0])
 
 ## 验证
 
-容量模板已实运行；Wyckoff 使用合成结构核对分组。percolation_sites 示例在 ccnb 环境用 NaFeF3 核对了 0.5 Å 连通、1.0 Å 无通道情况，以及 CIF 回读和周期连接 CSV。其他示例的语法与导入检查不代表真实材料或模型计算已验证。真实签名见 [API.md](API.md)，具体任务记录见 [TASK_TEMPLATE.md](TASK_TEMPLATE.md)。
+容量模板已实运行；Wyckoff 使用合成结构核对分组。percolation_sites 示例在 ccnb 环境用 NaFeF3 核对了 0.5 Å 连通、1.0 Å 无通道情况，以及 CIF 回读和周期连接 CSV。其他示例的语法与导入检查不代表真实材料或模型计算已验证。统一结构特征用 `python -m unittest Process_Struct.test_features` 实测：ccnb 20 项通过（6 项模型用例按设计跳过），py-mace 20 项通过（MACE 4 项真跑、M3GNet 2 项跳过），m3gnet_tf 20 项通过（M3GNet 2 项真跑、MACE 4 项跳过）；NaCl（Fm-3m，8 位点）配位数为 6，LiCoO2 的 `geom.Na_ratio` 为 NaN，`cnn_fp` 在 py1 返回 48 个结构列。MACE 部分用真实 checkpoint `MLIP_model/mace/mace-omat-0-medium.model` 跑了第一层（128 列）、第二层（128 列且与第一层不同）、两层拼接（256 列）与逐元素平均（2 元素 × 256 列）；单独一层是用 `node_feats` 切片实现的，已与官方 `get_descriptors(num_layers=1/2)` 做 `np.allclose` 交叉验证。M3GNet 用真实 checkpoint `MLIP_model/M3gnet` 在 m3gnet_tf 环境跑通：64 列 `mlip.d000…`、两次调用逐位一致，走的是 m3gnet 0.2.4 下的均值池化节点特征回退路径（`metadata["providers"]["mlip"]["descriptor"] == "mean_pooled_node_features"`），并拒绝 `mlip_layers`/`mlip_aggregate`。`Process_MLIP/tests/test_mace_descriptors.py` 的 11 项切片/归一化单元测试在 py-mace 通过，用假张量避免加载权重。真实签名见 [API.md](API.md)，具体任务记录见 [TASK_TEMPLATE.md](TASK_TEMPLATE.md)。
 
 ## 通用去重合并已完成
 

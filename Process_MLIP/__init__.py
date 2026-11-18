@@ -26,6 +26,11 @@ from .nep_training import prepare_nep_training, train_nep, fine_tune_nep
 from .nep_md import run_nep_md
 from .nepkit_sampling import generate_nepkit_initial_dataset, perturb_layered_oxide_structure
 from .collapse_monitor import compare_m3gnet_features
+from .al_sampling import (
+    WeightedFarthestFirstSampler,
+    WeightedKMeansPlusPlusSampler,
+    WeightedNMSSampler,
+)
 
 __all__ = [
     "MLIPRelaxer", "relax_structure_mace", "create_mace_calculator",
@@ -39,6 +44,7 @@ __all__ = [
     "evaluate_frame_forces", "compare_force_results", "generate_neb_pairs", "run_mlip_neb",
     "compare_m3gnet_features",
     "DXR_MSD", "MP_MSD",
+    "WeightedKMeansPlusPlusSampler", "WeightedFarthestFirstSampler", "WeightedNMSSampler",
 ]
 
 

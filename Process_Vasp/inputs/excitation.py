@@ -1,5 +1,7 @@
 """Prepare fixed-geometry, neutral Delta-SCF inputs from a converged run."""
 
+from __future__ import annotations
+
 import json
 import shutil
 from pathlib import Path

@@ -2,6 +2,69 @@
 
 源码静态索引；保留原有函数名。类构造和公开方法分别列出。默认值不代表适用于所有体系。
 
+## `WeightedKMeansPlusPlusSampler`
+
+源文件：[al_sampling.py](al_sampling.py)，第 213 行。
+
+```python
+WeightedKMeansPlusPlusSampler
+```
+
+Weighted k-means++: sample the next point with ``P(i) ∝ w_i d_i²``.
+
+The first point follows the same rule against ``labeled``; when ``labeled``
+is empty it is drawn with probability ``∝ w_i``. ``random_state`` reseeds
+every ``select`` call, so identical inputs give identical selections.
+Zero probabilities (duplicate features, zero weights) fall back to the
+highest-weight available candidate, first position on ties.
+
+## `WeightedKMeansPlusPlusSampler.__init__`
+
+源文件：[al_sampling.py](al_sampling.py)，第 223 行。
+
+```python
+WeightedKMeansPlusPlusSampler.__init__(self, random_state=None, *, chunk_size=512)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `WeightedFarthestFirstSampler`
+
+源文件：[al_sampling.py](al_sampling.py)，第 252 行。
+
+```python
+WeightedFarthestFirstSampler
+```
+
+Weighted farthest-first: pick ``argmax_i w_i d_i²`` every step.
+
+With empty ``labeled`` the first pick is the highest-weight candidate. Ties
+keep the earlier candidate position, so the sampler is deterministic.
+
+## `WeightedNMSSampler`
+
+源文件：[al_sampling.py](al_sampling.py)，第 281 行。
+
+```python
+WeightedNMSSampler
+```
+
+Weighted non-maximum suppression with a fixed feature-space radius.
+
+Candidates are visited by descending weight (stable on ties) and kept only
+when farther than ``radius`` from ``labeled`` and every accepted candidate.
+It may return fewer than ``n_select`` IDs and never pads the result.
+
+## `WeightedNMSSampler.__init__`
+
+源文件：[al_sampling.py](al_sampling.py)，第 289 行。
+
+```python
+WeightedNMSSampler.__init__(self, radius, *, chunk_size=512)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
 ## `main`
 
 源文件：[benchmark/__main__.py](benchmark/__main__.py)，第 8 行。
@@ -463,29 +526,76 @@ sample(features, n_samples, *, components='kaiser', threshold=0.5, clusters=None
 
 原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
 
+## `MACEAtomicDescriptors`
+
+源文件：[direct_sampling/features.py](direct_sampling/features.py)，第 69 行。
+
+```python
+MACEAtomicDescriptors
+```
+
+Per-atom invariant MACE descriptors with selectable interaction layers.
+
+``layers`` counts MACE interaction blocks: ``1`` is the first layer, ``2``
+the second, ``"all"`` (default) every layer in the checkpoint.  The public
+``MACECalculator.get_descriptors`` only returns cumulative layers, so a
+single layer is sliced out of the model's ``node_feats`` (the l=0 block of
+that layer).  The slice reproduces the official cumulative output exactly;
+``Process_MLIP/tests/test_mace_descriptors.py`` guards that equality.
+
+## `MACEAtomicDescriptors.__init__`
+
+源文件：[direct_sampling/features.py](direct_sampling/features.py)，第 80 行。
+
+```python
+MACEAtomicDescriptors.__init__(self, model_path, device='cpu', head=None)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `MACEAtomicDescriptors.per_atom`
+
+源文件：[direct_sampling/features.py](direct_sampling/features.py)，第 96 行。
+
+```python
+MACEAtomicDescriptors.per_atom(self, atoms, layers='all')
+```
+
+Return ``(n_atoms, dim_per_layer * len(layers))`` invariant descriptors.
+
+## `MACEAtomicDescriptors.aggregate`
+
+源文件：[direct_sampling/features.py](direct_sampling/features.py)，第 111 行。
+
+```python
+MACEAtomicDescriptors.aggregate(self, atoms, mode='atom_mean', layers='all')
+```
+
+Pool per-atom descriptors into one vector or one vector per element.
+
 ## `MACEEmbedding`
 
-源文件：[direct_sampling/features.py](direct_sampling/features.py)，第 41 行。
+源文件：[direct_sampling/features.py](direct_sampling/features.py)，第 121 行。
 
 ```python
 MACEEmbedding
 ```
 
-原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+Mean-pooled MACE descriptors, the structure-level encoder of the CLI.
 
 ## `MACEEmbedding.__init__`
 
-源文件：[direct_sampling/features.py](direct_sampling/features.py)，第 42 行。
+源文件：[direct_sampling/features.py](direct_sampling/features.py)，第 124 行。
 
 ```python
-MACEEmbedding.__init__(self, model_path, device='cpu', head=None)
+MACEEmbedding.__init__(self, model_path, device='cpu', head=None, layers='all')
 ```
 
 原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
 
 ## `M3GNetEmbedding`
 
-源文件：[direct_sampling/features.py](direct_sampling/features.py)，第 55 行。
+源文件：[direct_sampling/features.py](direct_sampling/features.py)，第 136 行。
 
 ```python
 M3GNetEmbedding
@@ -495,7 +605,7 @@ Paper formation-energy structure encoder, provided by maml.
 
 ## `M3GNetEmbedding.__init__`
 
-源文件：[direct_sampling/features.py](direct_sampling/features.py)，第 57 行。
+源文件：[direct_sampling/features.py](direct_sampling/features.py)，第 138 行。
 
 ```python
 M3GNetEmbedding.__init__(self, model_path)
@@ -505,13 +615,16 @@ M3GNetEmbedding.__init__(self, model_path)
 
 ## `build_encoder`
 
-源文件：[direct_sampling/features.py](direct_sampling/features.py)，第 91 行。
+源文件：[direct_sampling/features.py](direct_sampling/features.py)，第 215 行。
 
 ```python
-build_encoder(model_path, encoder='m3gnet', *, device='cpu', head=None)
+build_encoder(model_path, encoder='m3gnet', *, device='cpu', head=None, layers='all')
 ```
 
 Return a structure encoder; both encoders import their dependencies lazily.
+
+``layers`` selects MACE interaction layers (``1``, ``2``, ``"all"``); the
+M3GNet encoder has a single graph readout and rejects any other value.
 
 ## `structures_to_pca_csv`
 
@@ -571,6 +684,60 @@ Select new DIRECT cluster representatives not covered by reference rows.
 
 Reference rows come first. Any cluster containing a reference is considered
 covered; only the original DIRECT center from remaining clusters is returned.
+
+## `DXR_MSD`
+
+源文件：[dxr_msd.py](dxr_msd.py)，第 100 行。
+
+```python
+DXR_MSD(trajectory, output_csv=None, *, species=None, frame_interval_fs=None, skip_frames=0, max_lag_ratio=0.7, fit_start_ps=1.0, fit_end_ps=None, temperature_K=None, volume_A3=None, ion_charge=1, drift_reference='framework', output_json=None, overwrite=False)
+```
+
+All-origin FFT MSD and optional Nernst-Einstein conductivity.
+
+trajectory: `.traj`, `.xyz` or gzip-compressed archive readable by ASE.
+species: element string, list/tuple, or None (every element), analysed
+element by element. skip_frames drops equilibration frames.
+frame_interval_fs: time between saved frames; when None it is read from an
+adjacent report.json, which requires equally spaced frames.
+max_lag_ratio: largest lag as a fraction of the run (0 < r < 1).
+fit_start_ps/fit_end_ps: inclusive fit window in ps; None ends at the last
+lag. At least three positive-lag samples are required.
+drift_reference='framework' subtracts the mass-weighted centre-of-mass
+displacement of the atoms outside ``species`` (same convention as
+``export_msd``); None keeps the raw diffusion. Wrapped frames are always
+unwrapped with fractional minimum-image increments; a constant cell and
+fixed atom order are required (NVT only).
+temperature_K: positive Kelvin for the conductivity; None returns only the
+diffusion coefficient. volume_A3 defaults to the trajectory cell volume.
+ion_charge: signed nonzero charge number, or a dict per element.
+output_csv: writes the MSD curve with the same columns as ``export_msd``;
+output_json: writes the full result. Both refuse to overwrite by default.
+
+Returns slopes, intercepts, R^2 and slope standard errors for x/y/z/total,
+D = slope/6 (cm^2/s and m^2/s), directional D = slope_axis/2, and the
+uncorrelated sigma_NE in S/cm and S/m. No models are loaded and the input
+trajectory is never modified.
+
+## `make_data`
+
+源文件：[examples/al_sampling.py](examples/al_sampling.py)，第 23 行。
+
+```python
+make_data()
+```
+
+Return synthetic candidates, labeled configurations and weights.
+
+## `main`
+
+源文件：[examples/al_sampling.py](examples/al_sampling.py)，第 38 行。
+
+```python
+main()
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
 
 ## `make_calculator`
 
@@ -1007,45 +1174,6 @@ displacement of unselected atoms; None applies no drift correction.
 Requires pymatgen-analysis-diffusion only when called; no models are loaded.
 Writes only output_csv, refuses overwrite by default. Internal pymatgen
 diffusion/conductivity fits are discarded; use fit_msd explicitly.
-
-## `DXR_MSD`
-
-源文件：[dxr_msd.py](dxr_msd.py)，第 100 行。
-
-```python
-DXR_MSD(trajectory, output_csv=None, *, species=None, frame_interval_fs=None, skip_frames=0, max_lag_ratio=0.7, fit_start_ps=1.0, fit_end_ps=None, temperature_K=None, volume_A3=None, ion_charge=1, drift_reference='framework', output_json=None, overwrite=False)
-```
-
-All-origin FFT MSD and optional Nernst-Einstein conductivity.
-
-trajectory: `.traj`, `.xyz` or gzip-compressed archive readable by ASE.
-species: element string, list/tuple, or None (every element), analysed
-element by element. skip_frames drops equilibration frames.
-frame_interval_fs: time between saved frames; when None it is read from an
-adjacent report.json, which requires equally spaced frames.
-max_lag_ratio: largest lag as a fraction of the run (0 < r < 1).
-fit_start_ps/fit_end_ps: inclusive fit window in ps; None ends at the last
-lag. At least three positive-lag samples are required.
-drift_reference='framework' subtracts the mass-weighted centre-of-mass
-displacement of the atoms outside ``species`` (same convention as
-``export_msd``); None keeps the raw diffusion. Wrapped frames are always
-unwrapped with fractional minimum-image increments; a constant cell and
-fixed atom order are required (NVT only).
-temperature_K: positive Kelvin for the conductivity; None returns only the
-diffusion coefficient. volume_A3 defaults to the trajectory cell volume.
-ion_charge: signed nonzero charge number, or a dict per element.
-output_csv: writes the MSD curve with the same columns as ``export_msd``;
-output_json: writes the full result. Both refuse to overwrite by default.
-
-Returns slopes, intercepts, R^2 and slope standard errors for x/y/z/total,
-D = slope/6 (cm^2/s and m^2/s), directional D = slope_axis/2, and the
-uncorrelated sigma_NE in S/cm and S/m. No models are loaded and the input
-trajectory is never modified.
-
-## `MP_MSD`
-
-源文件：[msd.py](msd.py)，第 239 行；即 `export_msd` 的别名，保留 pymatgen
-（MP）后端命名，与全起点 FFT 的 `DXR_MSD` 并列。签名与输出列完全相同。
 
 ## `generate_neb_pairs`
 
