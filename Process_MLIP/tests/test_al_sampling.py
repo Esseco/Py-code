@@ -7,6 +7,8 @@ from Process_MLIP import (
     WeightedFarthestFirstSampler,
     WeightedKMeansPlusPlusSampler,
     WeightedNMSSampler,
+    compute_weights,
+    gaussian_kernel_density,
 )
 
 
@@ -172,6 +174,67 @@ class ValidationTests(unittest.TestCase):
             WeightedFarthestFirstSampler().select(
                 {"a": {"coordinates": [0.0, 0.0]}}, {}, {"a": 1.0}, n_select=1
             )
+
+
+class DensityAndMethodTests(unittest.TestCase):
+    def test_gaussian_kernel_density_values_and_cluster_ordering(self):
+        candidates = _candidates([[0.0], [0.1], [0.2], [10.0]])
+        rho = gaussian_kernel_density(candidates, bandwidth=1.0, chunk_size=2)
+        self.assertGreater(rho["c1"], rho["c3"])
+        expected_c3 = (3.0 * np.exp(-0.5 * (9.9**2)) + 1.0) / 4.0
+        # c3 is at 10.0; distances are 10.0, 9.9, 9.8, 0.0
+        exact_c3 = (
+            np.exp(-50.0) + np.exp(-0.5 * 9.9**2) + np.exp(-0.5 * 9.8**2) + 1.0
+        ) / 4.0
+        self.assertAlmostEqual(rho["c3"], exact_c3, places=12)
+        self.assertGreater(expected_c3, 0.0)
+
+    def test_gaussian_kernel_density_includes_labeled_and_default_bandwidth(self):
+        candidates = _candidates([[0.0], [5.0]])
+        labeled = _labeled([[0.0], [0.0]])
+        rho = gaussian_kernel_density(candidates, labeled=labeled)
+        self.assertGreater(rho["c0"], rho["c1"])
+
+        identical = _candidates([[1.0, 1.0], [1.0, 1.0]])
+        rho_same = gaussian_kernel_density(identical)
+        self.assertAlmostEqual(rho_same["c0"], 1.0)
+        self.assertAlmostEqual(rho_same["c1"], 1.0)
+
+    def test_invalid_bandwidth_raises(self):
+        candidates = _candidates([[0.0], [1.0]])
+        for bad in (0.0, -1.0, np.nan, np.inf, True):
+            with self.assertRaises((TypeError, ValueError)):
+                gaussian_kernel_density(candidates, bandwidth=bad)
+
+    def test_compute_weights_hook_preserves_base_and_supports_weight_fn(self):
+        candidates = _candidates([[0.0], [0.1], [5.0]])
+        rho = gaussian_kernel_density(candidates, bandwidth=1.0)
+        base = {"c0": 2.0, "c1": 3.0, "c2": 4.0}
+        self.assertEqual(compute_weights(candidates, base_weights=base, density=rho), base)
+        self.assertEqual(compute_weights(candidates), {"c0": 1.0, "c1": 1.0, "c2": 1.0})
+        adjusted = compute_weights(
+            candidates,
+            base_weights=base,
+            density=rho,
+            weight_fn=lambda _k, w, r: w / r,
+        )
+        self.assertAlmostEqual(adjusted["c2"], base["c2"] / rho["c2"])
+
+    def test_kmeans_plus_plus_fps_method_matches_farthest_first(self):
+        candidates = _candidates(np.random.default_rng(3).normal(size=(25, 4)))
+        labeled = _labeled(np.random.default_rng(4).normal(size=(3, 4)))
+        weights = {f"c{i}": float(i + 1) / 25.0 for i in range(25)}
+
+        fps_via_param = WeightedKMeansPlusPlusSampler(method="fps").select(
+            candidates, labeled, weights, n_select=6
+        )
+        fps_legacy = WeightedFarthestFirstSampler().select(
+            candidates, labeled, weights, n_select=6
+        )
+        self.assertEqual(fps_via_param, fps_legacy)
+
+        with self.assertRaises(ValueError):
+            WeightedKMeansPlusPlusSampler(method="unknown")
 
 
 if __name__ == "__main__":

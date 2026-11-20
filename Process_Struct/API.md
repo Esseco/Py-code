@@ -881,41 +881,39 @@ verbose prints elapsed CCNB and packing stages; set False to silence them.
 
 ## `get_supercell_matrices`
 
-源文件：[supercell.py](supercell.py)，第 8 行。
+源文件：[supercell.py](supercell.py)，第 68 行。
 
 ```python
-get_supercell_matrices(structure, size: int, dimensions: str='abc', *, symprec: float=1e-05)
+get_supercell_matrices(structure, sizes: Iterable[int] | int, dimensions: str='abc', *, deduplicate: bool=False, symprec: float=1e-05)
 ```
 
-Return inequivalent matrices and a reduced matrix for each one.
+Return symmetry-inequivalent recommended matrices by requested size.
 
 Args:
     structure: Ordered pymatgen Structure or ASE Atoms, preferably a
         primitive cell. The input cell is used as supplied, without
-        primitive-cell conversion. Its original PBC flags are not used.
-    size: Positive integer volume multiplier relative to the input cell,
-        not the final atom count.
-    dimensions: Nonempty subset of "abc", e.g. "ab", "ac", or "abc".
-        These are lattice directions, not Cartesian axes. Unselected
-        directions remain unchanged and are never mixed into selected ones.
+        primitive-cell conversion.
+    sizes: Positive integer volume multipliers relative to the input cell.
+    dimensions: Nonempty subset of ``"abc"``. Unselected lattice
+        directions remain unchanged.
+    deduplicate: If true, process sizes from large to small and remove a
+        smaller matrix when an actually larger matrix contains it. The
+        default is false.
     symprec: icet/spglib symmetry tolerance in angstrom (default 1e-5).
 
 Returns:
-    Dict with two equally long lists of integer (3, 3) numpy arrays:
-    ``all`` contains icet's symmetry-inequivalent HNF representatives;
-    ``recommended[i]`` is a Minkowski-reduced basis of ``all[i]``, using
-    only selected directions. Both use ``new_cell = matrix @ old_cell``
-    and work with pymatgen ``make_supercell`` or ASE ``make_supercell``.
-    Reduction shortens basis vectors; it does not select a globally most
-    cubic cell or rank the inequivalent supercells.
+    For a single integer size, return the legacy ``{"common": [...],
+    "recommended": [...]}`` structure. For multiple sizes, return a
+    dictionary keyed by size strings; each value contains ``common`` and
+    ``recommended`` lists. ``common`` contains icet's symmetry-inequivalent
+    matrices; ``recommended`` contains the corresponding Minkowski-reduced
+    matrices. Both use ``new_cell = matrix @ old_cell`` and can be passed
+    directly to pymatgen or ASE supercell methods.
 
 Notes:
-    Requires numpy, ASE and icet in py1; pymatgen only for Structure input.
     Equivalence uses the input's atomic species, positions and symmetry,
-    not magnetic moments. Supply an ordered structure. No files are
-    written and the input is not modified. No randomness is used; repeated
-    calls with the same input and library versions give the same order.
-    Enumeration can grow rapidly with size, especially in three dimensions.
+    not magnetic moments. Supply an ordered structure. No files are written
+    and the input is not modified. Enumeration can grow rapidly with size.
 
 ## `DeduplicationTests`
 
@@ -1213,6 +1211,56 @@ M3GNetEncoderTests.test_structure_vector_has_64_named_columns(self)
 
 ```python
 M3GNetEncoderTests.test_mace_only_options_are_rejected(self)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `SupercellMatricesTests`
+
+源文件：[test_supercell.py](test_supercell.py)，第 16 行。
+
+```python
+SupercellMatricesTests
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `SupercellMatricesTests.setUpClass`
+
+源文件：[test_supercell.py](test_supercell.py)，第 18 行。
+
+```python
+SupercellMatricesTests.setUpClass(cls)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `SupercellMatricesTests.test_sizes_are_grouped_by_string_without_cross_size_deduplication`
+
+源文件：[test_supercell.py](test_supercell.py)，第 25 行。
+
+```python
+SupercellMatricesTests.test_sizes_are_grouped_by_string_without_cross_size_deduplication(self)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `SupercellMatricesTests.test_deduplicate_removes_smaller_contained_supercells`
+
+源文件：[test_supercell.py](test_supercell.py)，第 40 行。
+
+```python
+SupercellMatricesTests.test_deduplicate_removes_smaller_contained_supercells(self)
+```
+
+原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。
+
+## `SupercellMatricesTests.test_integer_size_remains_supported`
+
+源文件：[test_supercell.py](test_supercell.py)，第 53 行。
+
+```python
+SupercellMatricesTests.test_integer_size_remains_supported(self)
 ```
 
 原源码尚未说明输入/返回含义；执行前阅读实现，勿根据函数名猜测。

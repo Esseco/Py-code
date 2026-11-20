@@ -8,7 +8,7 @@
 
 | 功能 | 公开入口 | 输入 → 输出 | 独立模板 |
 |---|---|---|---|
-| 扩胞矩阵 | get_supercell_matrices | 结构、扩胞倍数、a/b/c 方向 → 不等价矩阵及逐项短基矢约化矩阵 | 见下方调用示例 |
+| 扩胞矩阵 | get_supercell_matrices | 结构、扩胞倍数列表、a/b/c 方向 → 按倍数分组的不等价矩阵 | 见下方调用示例 |
 | 理论容量 | theoretical_specific_capacity | 化学式、迁移离子 → mAh/g | [capacity.py](examples/capacity.py) |
 | Wyckoff 分组 | get_wyckoff_sites | Structure、容差 → 分组列表 | [wyckoff_sites.py](examples/wyckoff_sites.py) |
 | 八面体畸变 | analyze_octahedra_distortion / Octahedron | 有序氧化物结构 → 局域畸变记录 | [octahedra.py](examples/octahedra.py) |
@@ -46,19 +46,24 @@ from pymatgen.core import Structure
 from Process_Struct import get_supercell_matrices
 
 structure = Structure.from_file("POSCAR")
-matrices = get_supercell_matrices(structure, size=8, dimensions="ab")
-all_matrices = matrices["all"]
-recommended = matrices["recommended"]
+matrices = get_supercell_matrices(
+    structure,
+    sizes=[2, 4, 6],
+    dimensions="ab",
+    deduplicate=True,
+)
 
-expanded = structure.copy()
-expanded.make_supercell(recommended[0])
+for size, groups in matrices.items():
+    for matrix in groups["recommended"]:
+        expanded = structure.copy()
+        expanded.make_supercell(matrix)
 ```
 
-`size` 是相对输入晶胞的体积/原子数倍数；`dimensions` 是晶格方向，支持 `a/b/c/ab/ac/bc/abc`，与书写顺序无关，未选方向保持原样。返回值仅有 `all` 和 `recommended` 两组整数 3×3 NumPy 矩阵，按索引一一对应；约定 `new_cell = matrix @ old_cell`，可直接传入 pymatgen 或 ASE 的扩胞接口。也支持 ASE Atoms 输入。
+`sizes` 是相对输入晶胞的体积/原子数倍数列表，也兼容传入单个整数。单整数调用保持原返回：`{"common": [...], "recommended": [...]}`；列表调用按倍数字符串分组，每组包含 `common` 和 `recommended` 两个列表，例如 `{"2": {"common": [...], "recommended": [...]}}`。`common` 是 icet 枚举出的不等价矩阵，`recommended` 是逐项对应的 Minkowski reduction 矩阵；两者都约定 `new_cell = matrix @ old_cell`，可直接传入 pymatgen 或 ASE 的扩胞接口。`dimensions` 是晶格方向，支持 `a/b/c/ab/ac/bc/abc`，未选方向保持原样。
 
-`all` 由 icet `enumerate_supercells(..., niggli_reduce=False)` 枚举，按输入结构的元素、坐标和对称性去重；建议使用原胞，不自动转换原胞，不考虑磁矩或无序占位。`recommended[i]` 用 ASE Minkowski reduction 仅在所选方向内约化 `all[i]`，保持同一个超晶胞，可能含负整数；它不是所有候选中唯一最优的矩阵，也不保证接近正方形/立方体。原始 PBC 标志由 `dimensions` 在输入副本上覆盖，仅用于本次枚举和约化。
+默认 `deduplicate=False`，保留每个请求倍数的全部候选。开启后只做“大超胞删除小超胞”：从大倍数到小倍数检查，若大矩阵确实能由小矩阵乘以整数变换矩阵得到，则删除该小矩阵；不会按倍数数字简单删除，也不提供反向去重。建议使用原胞；不考虑磁矩或无序占位。
 
-默认 py1，依赖 icet、ASE、NumPy；输入 Structure 时另需 pymatgen。`symprec=1e-5` Å 可调。无随机性、不修改输入、不写文件，重复调用返回新结果；枚举数会随倍数增长，三维大倍数需注意耗时和内存。已用小型合成立方/三斜晶胞核对数量、矩阵等价性和方向限制，未验证大规模枚举性能。
+默认 py1，依赖 icet、ASE、NumPy；输入 Structure 时另需 pymatgen。`symprec=1e-5` Å 可调。无随机性、不修改输入、不写文件；枚举数会随倍数增长，三维大倍数需注意耗时和内存。
 
 参考：[icet 枚举接口](https://icet.materialsmodeling.org/_modules/icet/tools/structure_enumeration.html)、[ASE Minkowski reduction](https://ase-lib.org/ase/geometry.html#ase.geometry.minkowski_reduce)。
 

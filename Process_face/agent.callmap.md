@@ -29,6 +29,42 @@
 - called_by: ['SurfaceFixer.get_surface_atoms', 'SurfaceFixer.fix_center_layers']
 - location: Process_face\Fix_atoms.py:56
 
+### SurfaceFixer._validate_layer_args
+- type: method
+- purpose: validate layer counts, side selection and z tolerance
+- inputs: ['surface_layers', 'subsurface_layers', 'side', 'layer_tol']
+- outputs: ['None']
+- calls: []
+- called_by: ['SurfaceFixer.classify_layers']
+- location: Process_face\\Fix_atoms.py
+
+### SurfaceFixer._group_z_layers
+- type: method
+- purpose: group atom indices into Cartesian-z layers
+- inputs: ['indices', 'layer_tol']
+- outputs: ['list[list[int]]']
+- calls: []
+- called_by: ['SurfaceFixer.classify_layers']
+- location: Process_face\\Fix_atoms.py
+
+### SurfaceFixer.classify_layers
+- type: method
+- purpose: classify top/bottom surface, subsurface and bulk layers
+- inputs: ['surface_layers', 'subsurface_layers', 'side', 'layer_tol']
+- outputs: ['dict[str, Any]']
+- calls: ['SurfaceFixer._validate_layer_args', 'SurfaceFixer._group_z_layers']
+- called_by: ['SurfaceFixer.fix_by_layers']
+- location: Process_face\\Fix_atoms.py
+
+### SurfaceFixer.fix_by_layers
+- type: method
+- purpose: fix selected surface/subsurface/bulk classes
+- inputs: ['surface_layers', 'subsurface_layers', 'side', 'layer_tol', 'fix_layers']
+- outputs: ['unknown']
+- calls: ['SurfaceFixer.classify_layers', 'SurfaceFixer._apply_fix']
+- called_by: []
+- location: Process_face\\Fix_atoms.py
+
 ### SurfaceFixer.get_symbol
 - type: method
 - purpose: unknown

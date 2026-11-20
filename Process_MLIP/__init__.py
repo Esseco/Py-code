@@ -30,6 +30,8 @@ from .al_sampling import (
     WeightedFarthestFirstSampler,
     WeightedKMeansPlusPlusSampler,
     WeightedNMSSampler,
+    compute_weights,
+    gaussian_kernel_density,
 )
 
 __all__ = [
@@ -45,6 +47,7 @@ __all__ = [
     "compare_m3gnet_features",
     "DXR_MSD", "MP_MSD",
     "WeightedKMeansPlusPlusSampler", "WeightedFarthestFirstSampler", "WeightedNMSSampler",
+    "gaussian_kernel_density", "compute_weights",
 ]
 
 

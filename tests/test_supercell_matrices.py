@@ -16,7 +16,8 @@ class SupercellMatricesTests(unittest.TestCase):
         for axes, count in [("abc", 3), ("ab", 2), ("a", 1)]:
             with self.subTest(axes=axes):
                 result = get_supercell_matrices(atoms, 2, axes)
-                self.assertEqual(len(result["all"]), count)
+                self.assertEqual(len(result["common"]), count)
+                self.assertEqual(len(result["recommended"]), count)
 
     def test_all_direction_subsets_and_equivalent_bases(self):
         cell = np.array([[3.1, 0, 0], [0.9, 4.2, 0], [0.4, 0.7, 5.3]])
@@ -27,9 +28,9 @@ class SupercellMatricesTests(unittest.TestCase):
                 with self.subTest(axes=axes):
                     result = get_supercell_matrices(atoms, 2, axes)
                     # Generic triclinic cell has only inversion: no HNF pairs merge.
-                    self.assertEqual(len(result["all"]), {1: 1, 2: 3, 3: 7}[length])
-                    self.assertEqual(len(result["all"]), len(result["recommended"]))
-                    for raw, reduced in zip(result["all"], result["recommended"]):
+                    self.assertEqual(len(result["common"]), {1: 1, 2: 3, 3: 7}[length])
+                    self.assertEqual(len(result["common"]), len(result["recommended"]))
+                    for raw, reduced in zip(result["common"], result["recommended"]):
                         change = reduced @ np.linalg.inv(raw)
                         np.testing.assert_allclose(change, np.rint(change), atol=1e-12)
                         self.assertAlmostEqual(abs(np.linalg.det(change)), 1)
@@ -50,7 +51,7 @@ class SupercellMatricesTests(unittest.TestCase):
         original = structure.copy()
         first = get_supercell_matrices(structure, 8, "ab")
         second = get_supercell_matrices(structure, 8, "ba")
-        for group in ("all", "recommended"):
+        for group in ("common", "recommended"):
             np.testing.assert_array_equal(first[group], second[group])
             for matrix in first[group]:
                 expanded = structure.copy()
@@ -61,8 +62,10 @@ class SupercellMatricesTests(unittest.TestCase):
 
     def test_identity_and_invalid_inputs(self):
         atoms = Atoms("Cu", cell=np.eye(3), pbc=True)
-        for matrix in get_supercell_matrices(atoms, 1, "ab").values():
-            np.testing.assert_array_equal(matrix, [np.eye(3, dtype=int)])
+        result = get_supercell_matrices(atoms, 1, "ab")
+        self.assertEqual(set(result), {"common", "recommended"})
+        for matrix_group in result.values():
+            np.testing.assert_array_equal(matrix_group, [np.eye(3, dtype=int)])
         for size in (0, -1, 2.5, True, np.bool_(True)):
             with self.subTest(size=size), self.assertRaises(ValueError):
                 get_supercell_matrices(atoms, size)

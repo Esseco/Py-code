@@ -5,7 +5,7 @@ atoms in both ASE and pymatgen structure backends.
 """
 
 from collections import Counter
-from typing import Any
+from typing import Any, Iterable
 
 import numpy as np
 from ase.constraints import FixAtoms
@@ -192,6 +192,107 @@ class SurfaceFixer:
         return results
 
     # ------------------------------------------------------------------
+    # Layer classification and fixing
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _validate_layer_args(
+        surface_layers: int, subsurface_layers: int, side: str, layer_tol: float
+    ) -> None:
+        """Validate layer-classification arguments."""
+        if not isinstance(surface_layers, int) or surface_layers < 1:
+            raise ValueError("surface_layers must be a positive integer")
+        if not isinstance(subsurface_layers, int) or subsurface_layers < 0:
+            raise ValueError("subsurface_layers must be a non-negative integer")
+        if side not in {"top", "bottom", "both"}:
+            raise ValueError("side must be 'top', 'bottom', or 'both'")
+        if layer_tol <= 0:
+            raise ValueError("layer_tol must be positive")
+
+    def _group_z_layers(self, indices: Iterable[int], layer_tol: float) -> list[list[int]]:
+        """Group atoms into z layers using a Cartesian tolerance."""
+        ordered = sorted(indices, key=lambda i: self.z[i])
+        if not ordered:
+            return []
+        layers = [[ordered[0]]]
+        centers = [float(self.z[ordered[0]])]
+        for index in ordered[1:]:
+            z_value = float(self.z[index])
+            if abs(z_value - centers[-1]) <= layer_tol:
+                layers[-1].append(index)
+                centers[-1] = float(np.mean(self.z[layers[-1]]))
+            else:
+                layers.append([index])
+                centers.append(z_value)
+        return layers
+
+    def classify_layers(
+        self,
+        surface_layers: int = 1,
+        subsurface_layers: int = 1,
+        side: str = "both",
+        layer_tol: float = 0.1,
+    ) -> dict[str, Any]:
+        """Classify atoms as surface, subsurface, or bulk by z-layers.
+
+        The slab is split at ``z_center``.  Layers are grouped by Cartesian z
+        proximity, with the outermost layer(s) labelled ``surface`` and the
+        following layer(s) labelled ``subsurface``.  ``side`` controls whether
+        the top, bottom, or both halves are classified.
+        """
+        self._validate_layer_args(surface_layers, subsurface_layers, side, layer_tol)
+        lower = np.where(self.z <= self.z_center)[0].tolist()
+        upper = np.where(self.z > self.z_center)[0].tolist()
+
+        def classify_one(indices: list[int], reverse: bool) -> dict[str, list[int]]:
+            layers = self._group_z_layers(indices, layer_tol)
+            if reverse:
+                layers = list(reversed(layers))
+            n_surface = min(surface_layers, len(layers))
+            n_subsurface = min(subsurface_layers, max(0, len(layers) - n_surface))
+            surface = [i for layer in layers[:n_surface] for i in layer]
+            subsurface = [i for layer in layers[n_surface:n_surface + n_subsurface] for i in layer]
+            selected = set(surface) | set(subsurface)
+            bulk = [i for i in indices if i not in selected]
+            return {
+                "surface": sorted(surface),
+                "subsurface": sorted(subsurface),
+                "bulk": sorted(bulk),
+            }
+
+        empty = {"surface": [], "subsurface": [], "bulk": []}
+        bottom = classify_one(lower, reverse=False) if side in {"bottom", "both"} else empty.copy()
+        top = classify_one(upper, reverse=True) if side in {"top", "both"} else empty.copy()
+        selected = {
+            "surface": sorted(bottom["surface"] + top["surface"]),
+            "subsurface": sorted(bottom["subsurface"] + top["subsurface"]),
+            "bulk": sorted(bottom["bulk"] + top["bulk"]),
+        }
+        return {"top": top, "bottom": bottom, **selected}
+
+    def fix_by_layers(
+        self,
+        surface_layers: int = 1,
+        subsurface_layers: int = 1,
+        side: str = "both",
+        layer_tol: float = 0.1,
+        fix_layers: Iterable[str] = ("bulk",),
+    ) -> Any:
+        """Fix selected layer classes and leave all other atoms unconstrained.
+
+        ``fix_layers`` may contain any combination of ``surface``,
+        ``subsurface`` and ``bulk``; an empty iterable clears all constraints.
+        """
+        groups = self.classify_layers(surface_layers, subsurface_layers, side, layer_tol)
+        valid = {"surface", "subsurface", "bulk"}
+        selected = set(fix_layers)
+        unknown = selected - valid
+        if unknown:
+            raise ValueError(f"unknown layer class(es): {sorted(unknown)}")
+        fixed = [i for name in selected for i in groups[name]]
+        return self._apply_fix(fixed)
+
+    # ------------------------------------------------------------------
     # Fixing strategies  (each returns the modified structure)
     # ------------------------------------------------------------------
 
@@ -291,7 +392,10 @@ class SurfaceFixer:
 
         if self.backend == "ase":
             mask = [i in fixed_set for i in range(self.n_atoms)]
-            self.structure.set_constraint(FixAtoms(mask=mask))
+            if fixed_set:
+                self.structure.set_constraint(FixAtoms(mask=mask))
+            else:
+                self.structure.set_constraint()
         else:
             sd = [[True, True, True] for _ in range(self.n_atoms)]
             for i in fixed_set:

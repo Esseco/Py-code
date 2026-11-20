@@ -2476,11 +2476,13 @@
       {
         "file": "Process_Struct/supercell.py",
         "name": "get_supercell_matrices",
-        "line": 8,
-        "signature": "get_supercell_matrices(structure, size: int, dimensions: str='abc', *, symprec: float=1e-05)",
-        "doc": "Return inequivalent matrices and a reduced matrix for each one.\n\nArgs:\n    structure: Ordered pymatgen Structure or ASE Atoms, preferably a\n        primitive cell. The input cell is used as supplied, without\n        primitive-cell conversion. Its original PBC flags are not used.\n    size: Positive integer volume multiplier relative to the input cell,\n        not the final atom count.\n    dimensions: Nonempty subset of \"abc\", e.g. \"ab\", \"ac\", or \"abc\".\n        These are lattice directions, not Cartesian axes. Unselected\n        directions remain unchanged and are never mixed into selected ones.\n    symprec: icet/spglib symmetry tolerance in angstrom (default 1e-5).\n\nReturns:\n    Dict with two equally long lists of integer (3, 3) numpy arrays:\n    ``all`` contains icet's symmetry-inequivalent HNF representatives;\n    ``recommended[i]`` is a Minkowski-reduced basis of ``all[i]``, using\n    only selected directions. Both use ``new_cell = matrix @ old_cell``\n    and work with pymatgen ``make_supercell`` or ASE ``make_supercell``.\n    Reduction shortens basis vectors; it does not select a globally most\n    cubic cell or rank the inequivalent supercells.\n\nNotes:\n    Requires numpy, ASE and icet in py1; pymatgen only for Structure input.\n    Equivalence uses the input's atomic species, positions and symmetry,\n    not magnetic moments. Supply an ordered structure. No files are\n    written and the input is not modified. No randomness is used; repeated\n    calls with the same input and library versions give the same order.\n    Enumeration can grow rapidly with size, especially in three dimensions.",
+        "line": 68,
+        "signature": "get_supercell_matrices(structure, sizes: Iterable[int] | int, dimensions: str='abc', *, deduplicate: bool=False, symprec: float=1e-05)",
+        "doc": "Return symmetry-inequivalent recommended matrices by requested size.\n\nArgs:\n    structure: Ordered pymatgen Structure or ASE Atoms, preferably a\n        primitive cell. The input cell is used as supplied, without\n        primitive-cell conversion.\n    sizes: Positive integer volume multipliers relative to the input cell.\n    dimensions: Nonempty subset of ``\"abc\"``. Unselected lattice\n        directions remain unchanged.\n    deduplicate: If true, process sizes from large to small and remove a\n        smaller matrix when an actually larger matrix contains it. The\n        default is false.\n    symprec: icet/spglib symmetry tolerance in angstrom (default 1e-5).\n\nReturns:\n    For a single integer size, return the legacy ``{\"common\": [...],\n    \"recommended\": [...]}`` structure. For multiple sizes, return a\n    dictionary keyed by size strings; each value contains ``common`` and\n    ``recommended`` lists. ``common`` contains icet's symmetry-inequivalent\n    matrices; ``recommended`` contains the corresponding Minkowski-reduced\n    matrices. Both use ``new_cell = matrix @ old_cell`` and can be passed\n    directly to pymatgen or ASE supercell methods.\n\nNotes:\n    Equivalence uses the input's atomic species, positions and symmetry,\n    not magnetic moments. Supply an ordered structure. No files are written\n    and the input is not modified. Enumeration can grow rapidly with size.",
         "imports": [
+          "__future__",
           "ase",
+          "collections",
           "icet",
           "numbers",
           "numpy",
@@ -2959,6 +2961,76 @@
           "numpy",
           "os",
           "pathlib",
+          "pymatgen",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Struct/test_supercell.py",
+        "name": "SupercellMatricesTests",
+        "line": 16,
+        "signature": "SupercellMatricesTests",
+        "doc": "",
+        "imports": [
+          "Process_Struct",
+          "__future__",
+          "ase",
+          "pymatgen",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Struct/test_supercell.py",
+        "name": "SupercellMatricesTests.setUpClass",
+        "line": 18,
+        "signature": "SupercellMatricesTests.setUpClass(cls)",
+        "doc": "",
+        "imports": [
+          "Process_Struct",
+          "__future__",
+          "ase",
+          "pymatgen",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Struct/test_supercell.py",
+        "name": "SupercellMatricesTests.test_sizes_are_grouped_by_string_without_cross_size_deduplication",
+        "line": 25,
+        "signature": "SupercellMatricesTests.test_sizes_are_grouped_by_string_without_cross_size_deduplication(self)",
+        "doc": "",
+        "imports": [
+          "Process_Struct",
+          "__future__",
+          "ase",
+          "pymatgen",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Struct/test_supercell.py",
+        "name": "SupercellMatricesTests.test_deduplicate_removes_smaller_contained_supercells",
+        "line": 40,
+        "signature": "SupercellMatricesTests.test_deduplicate_removes_smaller_contained_supercells(self)",
+        "doc": "",
+        "imports": [
+          "Process_Struct",
+          "__future__",
+          "ase",
+          "pymatgen",
+          "unittest"
+        ]
+      },
+      {
+        "file": "Process_Struct/test_supercell.py",
+        "name": "SupercellMatricesTests.test_integer_size_remains_supported",
+        "line": 53,
+        "signature": "SupercellMatricesTests.test_integer_size_remains_supported(self)",
+        "doc": "",
+        "imports": [
+          "Process_Struct",
+          "__future__",
+          "ase",
           "pymatgen",
           "unittest"
         ]
@@ -3999,8 +4071,36 @@
       },
       {
         "file": "Process_face/Fix_atoms.py",
+        "name": "SurfaceFixer.classify_layers",
+        "line": 229,
+        "signature": "SurfaceFixer.classify_layers(self, surface_layers: int=1, subsurface_layers: int=1, side: str='both', layer_tol: float=0.1)",
+        "doc": "Classify atoms as surface, subsurface, or bulk by z-layers.\n\nThe slab is split at ``z_center``.  Layers are grouped by Cartesian z\nproximity, with the outermost layer(s) labelled ``surface`` and the\nfollowing layer(s) labelled ``subsurface``.  ``side`` controls whether\nthe top, bottom, or both halves are classified.",
+        "imports": [
+          "ase",
+          "collections",
+          "numpy",
+          "pymatgen",
+          "typing"
+        ]
+      },
+      {
+        "file": "Process_face/Fix_atoms.py",
+        "name": "SurfaceFixer.fix_by_layers",
+        "line": 273,
+        "signature": "SurfaceFixer.fix_by_layers(self, surface_layers: int=1, subsurface_layers: int=1, side: str='both', layer_tol: float=0.1, fix_layers: Iterable[str]=('bulk',))",
+        "doc": "Fix selected layer classes and leave all other atoms unconstrained.\n\n``fix_layers`` may contain any combination of ``surface``,\n``subsurface`` and ``bulk``; an empty iterable clears all constraints.",
+        "imports": [
+          "ase",
+          "collections",
+          "numpy",
+          "pymatgen",
+          "typing"
+        ]
+      },
+      {
+        "file": "Process_face/Fix_atoms.py",
         "name": "SurfaceFixer.fix_center_layers",
-        "line": 198,
+        "line": 299,
         "signature": "SurfaceFixer.fix_center_layers(self, target_cn: int=6)",
         "doc": "Fix (constrain) the bulk layer identified by CN analysis.\n\nArgs:\n    target_cn: Minimum coordination number for a bulk atom.\n\nReturns:\n    The structure with the bulk layer fixed.",
         "imports": [
@@ -4014,7 +4114,7 @@
       {
         "file": "Process_face/Fix_atoms.py",
         "name": "SurfaceFixer.fix_center_distance",
-        "line": 210,
+        "line": 311,
         "signature": "SurfaceFixer.fix_center_distance(self, thickness: float=4.0)",
         "doc": "Fix atoms within a slab of *thickness* centered on z_center.\n\nArgs:\n    thickness: Total thickness (Å) of the fixed central region.\n\nReturns:\n    The structure with the central region fixed.",
         "imports": [
@@ -4028,7 +4128,7 @@
       {
         "file": "Process_face/Fix_atoms.py",
         "name": "SurfaceFixer.fix_center_fraction",
-        "line": 222,
+        "line": 323,
         "signature": "SurfaceFixer.fix_center_fraction(self, fraction: float=1 / 3)",
         "doc": "Fix a given fraction of atoms closest to z_center.\n\nAtoms are sorted by distance from the slab centre; the\nclosest *fraction* are fixed.\n\nArgs:\n    fraction: Fraction of total atoms to fix (default 1/3).\n\nReturns:\n    The structure with the closest atoms fixed.",
         "imports": [
@@ -4042,7 +4142,7 @@
       {
         "file": "Process_face/Fix_atoms.py",
         "name": "SurfaceFixer.fix_bottom_fraction",
-        "line": 239,
+        "line": 340,
         "signature": "SurfaceFixer.fix_bottom_fraction(self, fraction: float=0.5)",
         "doc": "Fix atoms in the bottom *fraction* of the c-axis range.\n\nUnlike the atom-count-based ``fix_center_fraction``, this\nmethod uses the fractional c-coordinate range, so that all\natoms on the same c-layer are either fully fixed or fully free.\n\nArgs:\n    fraction: Fraction of the c-axis range to fix, measured from\n        the bottom (default 0.5).  Must be in (0, 1].\n\nReturns:\n    The structure with the selected bottom region fixed.\n\nRaises:\n    ValueError: If *fraction* is not in (0, 1].",
         "imports": [
@@ -4056,7 +4156,7 @@
       {
         "file": "Process_face/Fix_atoms.py",
         "name": "SurfaceFixer.fix_bottom_distance",
-        "line": 265,
+        "line": 366,
         "signature": "SurfaceFixer.fix_bottom_distance(self, distance: float=2.0)",
         "doc": "Fix atoms within *distance* (Å) of the bottom of the slab.\n\nArgs:\n    distance: Maximum distance from ``zmin`` to fix (Å).\n\nReturns:\n    The structure with the bottom region fixed.",
         "imports": [

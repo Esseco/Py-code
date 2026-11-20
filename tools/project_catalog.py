@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Rebuild source-grounded project documentation without importing projects."""
 
 from __future__ import annotations

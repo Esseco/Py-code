@@ -27,7 +27,7 @@ selected configuration. No candidate-by-candidate distance matrix is built.
 
 from __future__ import annotations
 
-from typing import Any, Hashable, Mapping, Sequence
+from typing import Any, Callable, Hashable, Mapping
 
 import numpy as np
 from scipy.spatial.distance import cdist
@@ -36,7 +36,11 @@ __all__ = [
     "WeightedKMeansPlusPlusSampler",
     "WeightedFarthestFirstSampler",
     "WeightedNMSSampler",
+    "gaussian_kernel_density",
+    "compute_weights",
 ]
+
+_SAMPLING_METHODS = frozenset({"probabilistic", "fps"})
 
 
 def _feature_vector(item: Any, label: str) -> np.ndarray:
@@ -142,6 +146,105 @@ def _weighted_scores(weights: np.ndarray, nearest: np.ndarray) -> np.ndarray:
     return weights * distances * distances
 
 
+def _validate_chunk_size(chunk_size: int) -> int:
+    if isinstance(chunk_size, bool) or not isinstance(chunk_size, (int, np.integer)):
+        raise TypeError("chunk_size must be an integer")
+    if chunk_size < 1:
+        raise ValueError("chunk_size must be >= 1")
+    return int(chunk_size)
+
+
+def _estimate_bandwidth(points: np.ndarray) -> float:
+    """Estimate Gaussian kernel bandwidth from median pairwise feature distance."""
+    if points.shape[0] < 2:
+        return 1.0
+    sample = points if points.shape[0] <= 512 else points[np.linspace(0, points.shape[0] - 1, 512, dtype=int)]
+    sq_dists = cdist(sample, sample, metric="sqeuclidean")
+    tri = sq_dists[np.triu_indices(sample.shape[0], k=1)]
+    positive = tri[tri > 0]
+    if positive.size == 0:
+        return 1.0
+    return float(np.sqrt(np.median(positive)))
+
+
+def gaussian_kernel_density(
+    candidates: Mapping[Hashable, Any],
+    labeled: Mapping[Hashable, Any] | None = None,
+    *,
+    bandwidth: float | None = None,
+    chunk_size: int = 512,
+) -> dict[Hashable, float]:
+    """Compute Gaussian kernel density ``rho`` for each candidate in feature space.
+
+    ``rho(x_i) = (1 / M) * sum_j exp(-||x_i - x_j||^2 / (2 * bandwidth^2))``,
+    where ``{x_j}`` spans ``candidates`` (and ``labeled`` when provided).
+    """
+    chunk = _validate_chunk_size(chunk_size)
+    candidate_ids, points = _stack(candidates, "candidates")
+    if not candidate_ids:
+        raise ValueError("candidates must not be empty")
+    _, reference = _stack({} if labeled is None else labeled, "labeled")
+    if reference.size and reference.shape[1] != points.shape[1]:
+        raise ValueError(
+            "labeled features have dimension "
+            f"{reference.shape[1]}, candidates have {points.shape[1]}"
+        )
+    support = np.vstack([points, reference]) if reference.size else points
+    if bandwidth is None:
+        sigma = _estimate_bandwidth(support)
+    else:
+        if isinstance(bandwidth, bool) or not isinstance(bandwidth, (int, float, np.number)):
+            raise TypeError("bandwidth must be a positive finite number")
+        sigma = float(bandwidth)
+        if not np.isfinite(sigma) or sigma <= 0:
+            raise ValueError("bandwidth must be a positive finite number")
+    inv_two_var = 1.0 / (2.0 * sigma * sigma)
+    densities = np.empty(points.shape[0], dtype=float)
+    for start in range(0, points.shape[0], chunk):
+        block = points[start:start + chunk]
+        sq_dists = cdist(block, support, metric="sqeuclidean")
+        densities[start:start + block.shape[0]] = np.exp(-sq_dists * inv_two_var).mean(axis=1)
+    return {key: float(value) for key, value in zip(candidate_ids, densities)}
+
+
+def compute_weights(
+    candidates: Mapping[Hashable, Any],
+    *,
+    base_weights: Mapping[Hashable, float] | None = None,
+    density: Mapping[Hashable, float] | None = None,
+    weight_fn: Callable[[Hashable, float, float | None], float] | None = None,
+) -> dict[Hashable, float]:
+    """Build per-candidate weights, keeping density/weight_fn hook for future tuning."""
+    if not isinstance(candidates, Mapping) or not candidates:
+        raise ValueError("candidates must not be empty")
+    ids = list(candidates)
+    if base_weights is None:
+        base = {key: 1.0 for key in ids}
+    else:
+        missing = [key for key in ids if key not in base_weights]
+        if missing:
+            raise ValueError(f"base_weights are missing candidates, e.g. {missing[:5]}")
+        base = {key: float(base_weights[key]) for key in ids}
+        if any(not np.isfinite(v) or v < 0 for v in base.values()):
+            raise ValueError("base_weights must be finite and non-negative")
+    if density is not None:
+        missing = [key for key in ids if key not in density]
+        if missing:
+            raise ValueError(f"density is missing candidates, e.g. {missing[:5]}")
+        if any(not np.isfinite(float(density[key])) for key in ids):
+            raise ValueError("density values must be finite")
+    if weight_fn is None:
+        return base
+    result: dict[Hashable, float] = {}
+    for key in ids:
+        rho = float(density[key]) if density is not None else None
+        value = float(weight_fn(key, base[key], rho))
+        if not np.isfinite(value) or value < 0:
+            raise ValueError("weight_fn must return finite non-negative weights")
+        result[key] = value
+    return result
+
+
 def _draw_index(
     rng: np.random.Generator, probabilities: np.ndarray, available: np.ndarray
 ) -> int | None:
@@ -165,11 +268,7 @@ class _BaseWeightedSampler:
     """Shared validation, output mapping and distance bookkeeping."""
 
     def __init__(self, *, chunk_size=512):
-        if isinstance(chunk_size, bool) or not isinstance(chunk_size, (int, np.integer)):
-            raise TypeError("chunk_size must be an integer")
-        if chunk_size < 1:
-            raise ValueError("chunk_size must be >= 1")
-        self.chunk_size = int(chunk_size)
+        self.chunk_size = _validate_chunk_size(chunk_size)
 
     def select(
         self,
@@ -210,19 +309,52 @@ class _BaseWeightedSampler:
         raise NotImplementedError
 
 
-class WeightedKMeansPlusPlusSampler(_BaseWeightedSampler):
-    """Weighted k-means++: sample the next point with ``P(i) ∝ w_i d_i²``.
+def _select_u_indices(
+    points: np.ndarray,
+    weights: np.ndarray,
+    reference: np.ndarray,
+    n_select: int,
+    *,
+    method: str,
+    rng: np.random.Generator | None,
+    chunk_size: int,
+) -> list[int]:
+    """Select indices by ``U = w_i d_i²`` via probabilistic draw or FPS argmax."""
+    nearest = _nearest_distances(points, reference, chunk_size)
+    available = np.ones(points.shape[0], dtype=bool)
+    selected: list[int] = []
+    for step in range(n_select):
+        if step == 0 and reference.shape[0] == 0:
+            scores = weights
+        else:
+            scores = _weighted_scores(weights, nearest)
+        if method == "probabilistic":
+            assert rng is not None
+            index = _draw_index(rng, scores, available)
+            if index is None:
+                index = _fallback_index(weights, available)
+        else:
+            index = int(np.argmax(np.where(available, scores, -np.inf)))
+        selected.append(index)
+        available[index] = False
+        _update_nearest(points, nearest, index)
+    return selected
 
-    The first point follows the same rule against ``labeled``; when ``labeled``
-    is empty it is drawn with probability ``∝ w_i``. ``random_state`` reseeds
-    every ``select`` call, so identical inputs give identical selections.
-    Zero probabilities (duplicate features, zero weights) fall back to the
-    highest-weight available candidate, first position on ties.
+
+class WeightedKMeansPlusPlusSampler(_BaseWeightedSampler):
+    """Weighted k-means++ sampler over ``U_i = w_i d_i²``.
+
+    ``method="probabilistic"`` (default) samples with ``P(i) ∝ U_i``;
+    ``method="fps"`` deterministically picks ``argmax_i U_i`` (farthest-first).
+    When ``labeled`` is empty, the first step uses ``w_i`` directly.
     """
 
-    def __init__(self, random_state=None, *, chunk_size=512):
+    def __init__(self, random_state=None, *, method: str = "probabilistic", chunk_size=512):
         super().__init__(chunk_size=chunk_size)
+        if method not in _SAMPLING_METHODS:
+            raise ValueError(f"method must be one of {sorted(_SAMPLING_METHODS)}, got {method!r}")
         self.random_state = random_state
+        self.method = method
 
     def _select_indices(
         self,
@@ -231,22 +363,16 @@ class WeightedKMeansPlusPlusSampler(_BaseWeightedSampler):
         reference: np.ndarray,
         n_select: int,
     ) -> list[int]:
-        rng = np.random.default_rng(self.random_state)
-        nearest = _nearest_distances(points, reference, self.chunk_size)
-        available = np.ones(points.shape[0], dtype=bool)
-        selected: list[int] = []
-        for step in range(n_select):
-            if step == 0 and reference.shape[0] == 0:
-                probabilities = weights
-            else:
-                probabilities = _weighted_scores(weights, nearest)
-            index = _draw_index(rng, probabilities, available)
-            if index is None:
-                index = _fallback_index(weights, available)
-            selected.append(index)
-            available[index] = False
-            _update_nearest(points, nearest, index)
-        return selected
+        rng = np.random.default_rng(self.random_state) if self.method == "probabilistic" else None
+        return _select_u_indices(
+            points,
+            weights,
+            reference,
+            n_select,
+            method=self.method,
+            rng=rng,
+            chunk_size=self.chunk_size,
+        )
 
 
 class WeightedFarthestFirstSampler(_BaseWeightedSampler):
@@ -263,19 +389,15 @@ class WeightedFarthestFirstSampler(_BaseWeightedSampler):
         reference: np.ndarray,
         n_select: int,
     ) -> list[int]:
-        nearest = _nearest_distances(points, reference, self.chunk_size)
-        available = np.ones(points.shape[0], dtype=bool)
-        selected: list[int] = []
-        for step in range(n_select):
-            if step == 0 and reference.shape[0] == 0:
-                scores = weights
-            else:
-                scores = _weighted_scores(weights, nearest)
-            index = int(np.argmax(np.where(available, scores, -np.inf)))
-            selected.append(index)
-            available[index] = False
-            _update_nearest(points, nearest, index)
-        return selected
+        return _select_u_indices(
+            points,
+            weights,
+            reference,
+            n_select,
+            method="fps",
+            rng=None,
+            chunk_size=self.chunk_size,
+        )
 
 
 class WeightedNMSSampler(_BaseWeightedSampler):

@@ -142,9 +142,37 @@ Returns:
     ``top_groups``, ``bottom_groups``, ``n_top_groups``,
     ``n_bottom_groups``.
 
+## `SurfaceFixer.classify_layers`
+
+源文件：[Fix_atoms.py](Fix_atoms.py)，第 229 行。
+
+```python
+SurfaceFixer.classify_layers(self, surface_layers: int=1, subsurface_layers: int=1, side: str='both', layer_tol: float=0.1)
+```
+
+Classify atoms as surface, subsurface, or bulk by z-layers.
+
+The slab is split at ``z_center``.  Layers are grouped by Cartesian z
+proximity, with the outermost layer(s) labelled ``surface`` and the
+following layer(s) labelled ``subsurface``.  ``side`` controls whether
+the top, bottom, or both halves are classified.
+
+## `SurfaceFixer.fix_by_layers`
+
+源文件：[Fix_atoms.py](Fix_atoms.py)，第 273 行。
+
+```python
+SurfaceFixer.fix_by_layers(self, surface_layers: int=1, subsurface_layers: int=1, side: str='both', layer_tol: float=0.1, fix_layers: Iterable[str]=('bulk',))
+```
+
+Fix selected layer classes and leave all other atoms unconstrained.
+
+``fix_layers`` may contain any combination of ``surface``,
+``subsurface`` and ``bulk``; an empty iterable clears all constraints.
+
 ## `SurfaceFixer.fix_center_layers`
 
-源文件：[Fix_atoms.py](Fix_atoms.py)，第 198 行。
+源文件：[Fix_atoms.py](Fix_atoms.py)，第 299 行。
 
 ```python
 SurfaceFixer.fix_center_layers(self, target_cn: int=6)
@@ -160,7 +188,7 @@ Returns:
 
 ## `SurfaceFixer.fix_center_distance`
 
-源文件：[Fix_atoms.py](Fix_atoms.py)，第 210 行。
+源文件：[Fix_atoms.py](Fix_atoms.py)，第 311 行。
 
 ```python
 SurfaceFixer.fix_center_distance(self, thickness: float=4.0)
@@ -176,7 +204,7 @@ Returns:
 
 ## `SurfaceFixer.fix_center_fraction`
 
-源文件：[Fix_atoms.py](Fix_atoms.py)，第 222 行。
+源文件：[Fix_atoms.py](Fix_atoms.py)，第 323 行。
 
 ```python
 SurfaceFixer.fix_center_fraction(self, fraction: float=1 / 3)
@@ -195,7 +223,7 @@ Returns:
 
 ## `SurfaceFixer.fix_bottom_fraction`
 
-源文件：[Fix_atoms.py](Fix_atoms.py)，第 239 行。
+源文件：[Fix_atoms.py](Fix_atoms.py)，第 340 行。
 
 ```python
 SurfaceFixer.fix_bottom_fraction(self, fraction: float=0.5)
@@ -219,7 +247,7 @@ Raises:
 
 ## `SurfaceFixer.fix_bottom_distance`
 
-源文件：[Fix_atoms.py](Fix_atoms.py)，第 265 行。
+源文件：[Fix_atoms.py](Fix_atoms.py)，第 366 行。
 
 ```python
 SurfaceFixer.fix_bottom_distance(self, distance: float=2.0)

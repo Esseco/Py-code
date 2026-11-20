@@ -11,6 +11,10 @@
 
 本轮只处理 Process_Struct 的说明与功能模板，不改变科学实现或其他项目接口。
 
+## 批量超胞矩阵
+
+`get_supercell_matrices` 支持单个整数或 `sizes` 列表，并按倍数字符串返回 `common`/`recommended` 矩阵组。`common` 是原始不等价矩阵，`recommended` 是逐项约化后的矩阵。`deduplicate` 默认关闭；开启时只从大倍数向小倍数做真实整数矩阵包含关系检查，删除被更大超胞包含的小超胞，不按数字大小直接删除，也不提供小超胞删除大超胞的反向模式。
+
 ## 通用去重合并已完成
 
 实现统一到 Process_Struct/deduplication.py；Process_Vasp 保留同名兼容入口，层状氧化物与表面直接复用公共实现。deduplicate 保留首次出现的结构副本，deduplicate_dict 跨所有键去重并省略空组，deduplicate_df 按能量升序保留指定数量；采用默认 StructureMatcher，可能匹配平移/缩放及等价晶胞，不能理解为逐坐标完全相等。
